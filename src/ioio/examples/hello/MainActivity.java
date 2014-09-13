@@ -130,16 +130,10 @@ public class MainActivity extends IOIOActivity {
 		private int rightMotorSpeed;
 		private DigitalOutput halfFull;
 		private DigitalOutput reset; // Must be true for motors to run.
-		private DigitalOutput control;// Decay mode selector high = slow, low =
-										// fast mode
-
-		// final ChannelConfigSteps stepperStepConfig = new
-		// ChannelConfigSteps(new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-		// final ChannelConfigFmSpeed stepperFMspeedConfig = new
-		// ChannelConfigFmSpeed(Clock.CLK_2M, 10, new
-		// DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-		// final ChannelConfig[] config = new ChannelConfig[]
-		// {stepperFMspeedConfig};
+		private DigitalOutput control;// Decay mode selector high = slow, low = fast
+		// final ChannelConfigFmSpeed rightStepperFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_2M, 10, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+		// final ChannelConfigFmSpeed leftStepperFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_2M, 10, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
+		// final ChannelConfig[] config = new ChannelConfig[]{rightStepperFMspeedConfig, leftStepperFMspeedConfig};
 
 		/**
 		 * Called every time a connection with IOIO has been established.
@@ -153,25 +147,13 @@ public class MainActivity extends IOIOActivity {
 		protected void setup() throws ConnectionLostException {
 			sonar = new UltraSonicSensor(ioio_);
 			led_ = ioio_.openDigitalOutput(0, true);
-			rightMotorDirection = ioio_.openDigitalOutput(20, true);// vicswagon
-																	// goes
-																	// forward
+			rightMotorDirection = ioio_.openDigitalOutput(20, true);
 			leftMotorDirection = ioio_.openDigitalOutput(21, false);
 			motorCongtrollerReset = ioio_.openDigitalOutput(22, true);
-			motorEnable = ioio_.openDigitalOutput(3, true);// Must be true for
-															// motors to run
-			rightMotorClock = ioio_.openDigitalOutput(28, false);// Each pulse
-																	// moves
-																	// motor one
-																	// step
+			motorEnable = ioio_.openDigitalOutput(3, true);// enable
+			rightMotorClock = ioio_.openDigitalOutput(28, false);// step
 			leftMotorClock = ioio_.openDigitalOutput(27, false);
-			rightMotorControl = ioio_.openDigitalOutput(6, false);// Both
-																	// motors,
-																	// low =>
-																	// fast
-																	// motor
-																	// decay
-																	// mode
+			rightMotorControl = ioio_.openDigitalOutput(6, false);// fast decay
 		}
 
 		/**
@@ -188,13 +170,12 @@ public class MainActivity extends IOIOActivity {
 				try {
 					Thread.sleep(1000);
 					// led_.write(true);
-					// rightMotorClock.write(true);
-					// rightMotorClock.write(false);
-					// leftMotorClock.write(true);
-					// leftMotorClock.write(false);
+					 rightMotorClock.write(true);
+					 rightMotorClock.write(false);
+					 leftMotorClock.write(true);
+					 leftMotorClock.write(false);
 					sonar.read();
-					log(String.valueOf(sonar.getFrontDistance() + " "
-							+ sonar.getLeftDistance() + " " + getAzimuth()));
+					log(String.valueOf(sonar.getFrontDistance() + " " + sonar.getLeftDistance() + " " + getAzimuth()));
 
 				} catch (InterruptedException e) {
 				}
@@ -291,3 +272,136 @@ public class MainActivity extends IOIOActivity {
 //		super.onResume();
 //	}
 }
+/*
+Skip to content
+Sign up Sign in This repository
+Explore
+Features
+Enterprise
+Blog
+ Star 376  Fork 208 ytai/ioio
+ branch: master ioio / software / applications / pc / HelloSequencer / src / ioio / examples / hello_sequencer / HelloSequencer.java
+Ytai Ben-Tsviytai on Jan 8 software: Added a HelloSequencer example
+1 contributor
+121 lines (105 sloc)  4.508 kb RawBlameHistory   
+package ioio.examples.hello_sequencer;
+
+import ioio.lib.api.DigitalOutput;
+import ioio.lib.api.Sequencer;
+import ioio.lib.api.Sequencer.ChannelConfig;
+import ioio.lib.api.Sequencer.ChannelConfigBinary;
+import ioio.lib.api.Sequencer.ChannelConfigPwmSpeed;
+import ioio.lib.api.Sequencer.ChannelConfigSteps;
+import ioio.lib.api.Sequencer.ChannelCueBinary;
+import ioio.lib.api.Sequencer.ChannelCuePwmSpeed;
+import ioio.lib.api.Sequencer.ChannelCueSteps;
+import ioio.lib.api.Sequencer.Clock;
+import ioio.lib.api.exception.ConnectionLostException;
+import ioio.lib.util.BaseIOIOLooper;
+import ioio.lib.util.IOIOLooper;
+import ioio.lib.util.pc.IOIOConsoleApp;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
+public class HelloSequencer extends IOIOConsoleApp {
+
+	// Boilerplate main(). Copy-paste this code into any IOIOapplication.
+	public static void main(String[] args) throws Exception {
+		new HelloSequencer().go(args);
+	}
+
+	@Override
+	protected void run(String[] args) throws IOException {
+		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+		boolean abort = false;
+		String line;
+		while (!abort && (line = reader.readLine()) != null) {
+			if (line.equals("q")) {
+				abort = true;
+			} else {
+				System.out.println("Unknown input. q=quit.");
+			}
+		}
+	}
+
+	@Override
+	public IOIOLooper createIOIOLooper(String connectionType, Object extra) {
+		return new BaseIOIOLooper() {
+			private boolean dir_ = false;
+			private int color_ = 0;
+
+			private Sequencer.ChannelCueBinary led1Cue_ = new ChannelCueBinary();
+			private Sequencer.ChannelCueBinary led2Cue_ = new ChannelCueBinary();
+			private Sequencer.ChannelCueBinary led3Cue_ = new ChannelCueBinary();
+			private Sequencer.ChannelCuePwmSpeed dcMotorACue_ = new ChannelCuePwmSpeed();
+			private Sequencer.ChannelCuePwmSpeed dcMotorBCue_ = new ChannelCuePwmSpeed();
+			private Sequencer.ChannelCueBinary stepperDirCue_ = new ChannelCueBinary();
+			private Sequencer.ChannelCueSteps stepperStepCue_ = new ChannelCueSteps();
+
+			private Sequencer.ChannelCue[] cue_ = new Sequencer.ChannelCue[] { led1Cue_, led2Cue_,
+					led3Cue_, dcMotorACue_, dcMotorBCue_, stepperDirCue_, stepperStepCue_ };
+			private Sequencer sequencer_;
+
+			@Override
+			protected void setup() throws ConnectionLostException, InterruptedException {
+				final ChannelConfigBinary led1Config = new Sequencer.ChannelConfigBinary(true,
+						true, new DigitalOutput.Spec(5, DigitalOutput.Spec.Mode.OPEN_DRAIN));
+				final ChannelConfigBinary led2Config = new Sequencer.ChannelConfigBinary(true,
+						true, new DigitalOutput.Spec(6, DigitalOutput.Spec.Mode.OPEN_DRAIN));
+				final ChannelConfigBinary led3Config = new Sequencer.ChannelConfigBinary(true,
+						true, new DigitalOutput.Spec(7, DigitalOutput.Spec.Mode.OPEN_DRAIN));
+				final ChannelConfigPwmSpeed dcMotorAConfig = new Sequencer.ChannelConfigPwmSpeed(
+						Sequencer.Clock.CLK_2M, 2000, 0, new DigitalOutput.Spec(1));
+				final ChannelConfigPwmSpeed dcMotorBConfig = new Sequencer.ChannelConfigPwmSpeed(
+						Sequencer.Clock.CLK_2M, 2000, 0, new DigitalOutput.Spec(2));
+				final ChannelConfigBinary stepperDirConfig = new Sequencer.ChannelConfigBinary(
+						false, false, new DigitalOutput.Spec(3));
+				final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(
+						new DigitalOutput.Spec(4));
+				final ChannelConfig[] config = new ChannelConfig[] { led1Config, led2Config,
+						led3Config, dcMotorAConfig, dcMotorBConfig, stepperDirConfig,
+						stepperStepConfig };
+
+				sequencer_ = ioio_.openSequencer(config);
+
+				// Pre-fill.
+				sequencer_.waitEventType(Sequencer.Event.Type.STOPPED);
+				while (sequencer_.available() > 0) {
+					push();
+				}
+
+				sequencer_.start();
+			}
+
+			@Override
+			public void loop() throws ConnectionLostException, InterruptedException {
+				push();
+			}
+
+			private void push() throws ConnectionLostException, InterruptedException {
+				stepperStepCue_.clk = Clock.CLK_2M;
+				stepperStepCue_.pulseWidth = 2;
+				stepperStepCue_.period = 400;
+				if (dir_) {
+					dcMotorACue_.pulseWidth = 1000;
+					dcMotorBCue_.pulseWidth = 0;
+					stepperDirCue_.value = false;
+				} else {
+					dcMotorACue_.pulseWidth = 0;
+					dcMotorBCue_.pulseWidth = 1000;
+					stepperDirCue_.value = true;
+				}
+				led1Cue_.value = (color_ & 1) == 0;
+				led2Cue_.value = (color_ & 2) == 0;
+				led3Cue_.value = (color_ & 4) == 0;
+
+				sequencer_.push(cue_, 62500 / 2);
+				dir_ = !dir_;
+				color_++;
+			}
+		};
+	}
+}
+*/
