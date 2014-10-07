@@ -1,15 +1,17 @@
 package ioio.examples.hello;
 
 /**************************************************************************
- * Happy version 140517A...ultrasonics and motors working
+ * Happy version 141006A Single step works...trying to get sequencer working
  **************************************************************************/
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.PwmOutput;
 import ioio.lib.api.Sequencer;
 import ioio.lib.api.Sequencer.ChannelConfigBinary;
+import ioio.lib.api.Sequencer.ChannelConfigSteps;
 import ioio.lib.api.Sequencer.ChannelCueBinary;
 import ioio.lib.api.Sequencer.ChannelCueFmSpeed;
 import ioio.lib.api.Sequencer.ChannelCueSteps;
+import ioio.lib.api.Sequencer.Clock;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
@@ -27,22 +29,51 @@ import android.util.Log;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.ToggleButton;
+import ioio.lib.api.Sequencer.ChannelConfig;
+import ioio.lib.api.Sequencer.ChannelConfigBinary;
+import ioio.lib.api.Sequencer.ChannelConfigFmSpeed;
+import ioio.lib.api.Sequencer.ChannelConfigSteps;
 
-/**
- * This is the main activity of the HelloIOIO example application. It displays a
- * toggle button on the screen, which enables control of the on-board LED and
- * controls the VicsWagon. Modified by Vic rev 140430A
- */
-public class MainActivity extends IOIOActivity {
-	private ToggleButton button_;
+public class MainActivity extends IOIOActivity
+{
+	private static final int FRONT_STROBE_ULTRASONIC_OUTPUT_PIN = 16;
+	private static final int LEFT_STROBE_ULTRASONIC_OUTPUT_PIN = 17;
+	private static final int RIGHT_STROBE_ULTRASONIC_OUTPUT_PIN = 15;
+	private static final int FRONT_ULTRASONIC_INPUT_PIN = 12;
+	private static final int REAR_ULTRASONIC_INPUT_PIN = 10;// input to ioio
+															// board
+	private static final int RIGHT_ULTRASONIC_INPUT_PIN = 11;
+	private static final int LEFT_ULTRASONIC_INPUT_PIN = 13;
+	private static final int MOTOR_ENABLE_PIN = 3;// Low turns off all power to
+	// both motors
+	private static final int MOTOR_RIGHT_DIRECTION_OUTPUT_PIN = 20;// High means
+	// clockwise
+	private static final int MOTOR_LEFT_DIRECTION_OUTPUT_PIN = 21;
+	private static final int MOTOR_CONTROLLER_CONTROL_PIN = 6;// For both motors
+	private static final int REAR_STROBE_ULTRASONIC_OUTPUT_PIN = 14;// output
+	// from ioio
+	// board
+	private static final int MOTOR_HALF_FULL_STEP_PIN = 7;// For both motors
+	private static final int MOTOR_RESET = 22;// For both motors
+	private static final int MOTOR_CLOCK_LEFT_PIN = 27;
+	private static final int MOTOR_CLOCK_RIGHT_PIN = 28;
+	final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+	final ChannelConfigFmSpeed stepperFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_2M, 10,
+			new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+	final ChannelConfig[] config = new ChannelConfig[] { stepperFMspeedConfig };
+	private Sequencer sequencer;
+	private Sequencer.ChannelCueBinary stepperDirCue = new ChannelCueBinary();
+	private Sequencer.ChannelCueSteps stepperStepCue = new ChannelCueSteps();
+	private Sequencer.ChannelCueFmSpeed stepperFMspeedCue = new ChannelCueFmSpeed();
+	private Sequencer.ChannelCue[] queue = new Sequencer.ChannelCue[] { stepperFMspeedCue };
+	final ChannelConfigBinary stepperDirConfig = new Sequencer.ChannelConfigBinary(false, false,
+			new DigitalOutput.Spec(MOTOR_RIGHT_DIRECTION_OUTPUT_PIN));
+	private ToggleButton button;
 	public UltraSonicSensor sonar;
 	private TextView mText;
 	private ScrollView mScroller;
 	private TextToSpeech mTts;
-	/**
-	 * Compass stuff
-	 */
-	SensorManager sensorManager;
+	private SensorManager sensorManager;
 	private Sensor sensorAccelerometer;
 	private Sensor sensorMagneticField;
 	private float[] valuesAccelerometer;
@@ -53,151 +84,124 @@ public class MainActivity extends IOIOActivity {
 	private double azimuth;
 	private double pitch;
 	private double roll;
+	private DigitalOutput led;// The on-board LED
+	private int pulseWidth = 10;// microseconds
+	private int rightStepperMotorPeriod = 60000;
+	private DigitalOutput rightMotorClockPulse;
+	private DigitalOutput leftMotorClockPulse;
+	private DigitalOutput motorEnable; // Both motors
+	private DigitalOutput rightMotorClock; // Step right motor
+	private DigitalOutput leftMotorClock; // Step left motor
+	private DigitalOutput motorCongtrollerReset;
+	private DigitalOutput rightMotorControl; // Motor decay mode
+	private DigitalOutput rightMotorDirection;
+	private DigitalOutput leftMotorDirection;
+	private DigitalOutput motorControllerControl;// Decay mode selector, high =
+													// slow decay, low = fast
+													// decay
+	private DigitalOutput halfFull;
+	private DigitalOutput reset; // Must be true for motors to run.
+	private DigitalOutput control;// Decay mode selector high = slow, low = fast
 
-	/**
-	 * Called when the activity is first created. Here we normally initialize
-	 * our GUI.
-	 */
 	@Override
-	public void onCreate(Bundle savedInstanceState) {
+	public void onCreate(Bundle savedInstanceState)
+	{
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		button_ = (ToggleButton) findViewById(R.id.button);
+		button = (ToggleButton) findViewById(R.id.button);
 		mText = (TextView) findViewById(R.id.logText);
 		mScroller = (ScrollView) findViewById(R.id.scroller);
-		// Compass stuff
 		sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-		sensorAccelerometer = sensorManager
-				.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-		sensorMagneticField = sensorManager
-				.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-
+		sensorAccelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+		sensorMagneticField = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 		valuesAccelerometer = new float[3];
 		valuesMagneticField = new float[3];
-
 		matrixR = new float[9];
 		matrixI = new float[9];
 		matrixValues = new float[3];
 	}
 
-	/**
-	 * This is the thread on which all the IOIO activity happens. It will be run
-	 * every time the application is resumed and aborted when it is paused. The
-	 * method setup() will be called right after a connection with the IOIO has
-	 * been established (which might happen several times!). Then, loop() will
-	 * be called repetitively until the IOIO gets disconnected
-	 */
-	class Looper extends BaseIOIOLooper {
-		private DigitalOutput led_;// The on-board LED
-		private int pulseWidth = 10;// microseconds
-		private int rightStepperMotorPeriod = 60000;
-		private DigitalOutput rightMotorClockPulse;
-		private DigitalOutput leftMotorClockPulse;
-		private DigitalOutput motorEnable; // Both motors
-		private DigitalOutput rightMotorClock; // Step right motor
-		private DigitalOutput leftMotorClock; // Step left motor
-		private DigitalOutput motorCongtrollerReset;
-		private DigitalOutput rightMotorControl; // Motor decay mode
-		private DigitalOutput rightMotorDirection;
-		private DigitalOutput leftMotorDirection;
-		private DigitalOutput motorControllerControl;// Decay mode selector,
-														// high = slow decay,
-														// low = fast decay
-		private static final int MOTOR_ENABLE_PIN = 3;// Low turns off all power
-														// to both motors
-		private static final int MOTOR_RIGHT_DIRECTION_OUTPUT_PIN = 20;// High =
-																		// clockwise,
-																		// low =
-																		// ccw
-		private static final int MOTOR_LEFT_DIRECTION_OUTPUT_PIN = 21;
-		private static final int MOTOR_CONTROLLER_CONTROL_PIN = 6;// For both
-		private static final int REAR_STROBE_ULTRASONIC_OUTPUT_PIN = 14;// output
-																		// from
-																		// ioio
-																		// board
-		private static final int MOTOR_HALF_FULL_STEP_PIN = 7;// For both motors
-		private static final int MOTOR_RESET = 22;// For both motors
-		private static final int MOTOR_CLOCK_LEFT_PIN = 27;
-		private static final int MOTOR_CLOCK_RIGHT_PIN = 28;
-		private Sequencer sequencer_;
-		private Sequencer.ChannelCueBinary stepperDirCue_ = new ChannelCueBinary();
-		private Sequencer.ChannelCueSteps stepperStepCue_ = new ChannelCueSteps();
-		private Sequencer.ChannelCueFmSpeed stepperFMspeedCue_ = new ChannelCueFmSpeed();
-		private Sequencer.ChannelCue[] cue_ = new Sequencer.ChannelCue[] { stepperFMspeedCue_ };
-		final ChannelConfigBinary stepperDirConfig = new Sequencer.ChannelConfigBinary(
-				false, false, new DigitalOutput.Spec(
-						MOTOR_RIGHT_DIRECTION_OUTPUT_PIN));
-		private int rightMotorSpeed;
-		private DigitalOutput halfFull;
-		private DigitalOutput reset; // Must be true for motors to run.
-		private DigitalOutput control;// Decay mode selector high = slow, low = fast
-		// final ChannelConfigFmSpeed rightStepperFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_2M, 10, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-		// final ChannelConfigFmSpeed leftStepperFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_2M, 10, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
-		// final ChannelConfig[] config = new ChannelConfig[]{rightStepperFMspeedConfig, leftStepperFMspeedConfig};
+	class Looper extends BaseIOIOLooper
+	{
 
-		/**
-		 * Called every time a connection with IOIO has been established.
-		 * Typically used to open pins.
-		 * 
-		 * @throws ConnectionLostExceptio
-		 *             when IOIO connection is lost. when IOIO connection lost.
-		 * @see ioio.lib.util.AbstractIOIOActivity.IOIOThread#setup()
-		 */
 		@Override
-		protected void setup() throws ConnectionLostException {
+		protected void setup() throws ConnectionLostException
+		{
 			sonar = new UltraSonicSensor(ioio_);
-			led_ = ioio_.openDigitalOutput(0, true);
-			rightMotorDirection = ioio_.openDigitalOutput(20, true);
-			leftMotorDirection = ioio_.openDigitalOutput(21, false);
-			motorCongtrollerReset = ioio_.openDigitalOutput(22, true);
-			motorEnable = ioio_.openDigitalOutput(3, true);// enable
-			rightMotorClock = ioio_.openDigitalOutput(28, false);// step
-			leftMotorClock = ioio_.openDigitalOutput(27, false);
-			rightMotorControl = ioio_.openDigitalOutput(6, false);// fast decay
+			led = ioio_.openDigitalOutput(0, true);
+			rightMotorDirection = ioio_.openDigitalOutput(MOTOR_RIGHT_DIRECTION_OUTPUT_PIN, true);
+			leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_OUTPUT_PIN, false);
+			motorCongtrollerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
+			motorEnable = ioio_.openDigitalOutput(MOTOR_ENABLE_PIN, true);// enable
+			rightMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_RIGHT_PIN, false);// step
+			leftMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_LEFT_PIN, false);
+			rightMotorControl = ioio_.openDigitalOutput(MOTOR_CONTROLLER_CONTROL_PIN, false);// fast
+																								// decay
+			try
+			{
+				sequencer = ioio_.openSequencer(config);
+				sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
+				while (sequencer.available() > 0)
+				{
+					push();
+				}
+				sequencer.start();
+
+			} catch (Exception e)
+			{
+			}
+			log("sequencer started");
 		}
 
-		/**
-		 * Called repetitively while the IOIO is connected.
-		 * 
-		 * @throws ConnectionLostException
-		 *             when IOIO connection is lost.
-		 * @see ioio.lib.util.AbstractIOIOActivity.IOIOThread#loop()
-		 */
 		@Override
-		public void loop() throws ConnectionLostException {
-			if (button_.isChecked()) {
-				led_.write(false);
-				try {
+		public void loop() throws ConnectionLostException
+		{
+			if (button.isChecked())
+			{
+				led.write(false);
+				try
+				{
 					Thread.sleep(1000);
-					// led_.write(true);
-					 rightMotorClock.write(true);
-					 rightMotorClock.write(false);
-					 leftMotorClock.write(true);
-					 leftMotorClock.write(false);
-					sonar.read();
+					rightMotorClock.write(true);
+					rightMotorClock.write(false);
+					leftMotorClock.write(true);
+					leftMotorClock.write(false);
+					// push();
 					log(String.valueOf(sonar.getFrontDistance() + " " + sonar.getLeftDistance() + " " + getAzimuth()));
 
-				} catch (InterruptedException e) {
+				} catch (Exception e)
+				{
 				}
-			} else {
-				led_.write(true);
+			} else
+			{
+				led.write(true);
 			}
 		}
 	}
 
-	/**
-	 * A method to create our IOIO thread.
-	 * 
-	 * @see ioio.lib.util.AbstractIOIOActivity#createIOIOThread()
-	 */
+	private void push()
+	{
+		stepperFMspeedCue.period = rightStepperMotorPeriod *= .9;
+		try
+		{
+			sequencer.push(queue, 62500);
+		} catch (Exception e)
+		{
+		}
+	}
+
 	@Override
-	protected IOIOLooper createIOIOLooper() {
+	protected IOIOLooper createIOIOLooper()
+	{
 		return new Looper();
 	}
 
-	public void log(final String msg) {
-		runOnUiThread(new Runnable() {
-			public void run() {
+	public void log(final String msg)
+	{
+		runOnUiThread(new Runnable()
+		{
+			public void run()
+			{
 				mText.append(msg);
 				mText.append("\n");
 				mScroller.smoothScrollTo(0, mText.getBottom());
@@ -205,203 +209,50 @@ public class MainActivity extends IOIOActivity {
 		});
 	}
 
-	public void onSensorChanged(SensorEvent event) {
-		switch (event.sensor.getType()) {
+	public void onSensorChanged(SensorEvent event)
+	{
+		switch (event.sensor.getType())
+		{
 		case Sensor.TYPE_ACCELEROMETER:
-			for (int i = 0; i < 3; i++) {
+			for (int i = 0; i < 3; i++)
+			{
 				valuesAccelerometer[i] = event.values[i];
 			}
 			break;
 		case Sensor.TYPE_MAGNETIC_FIELD:
-			for (int i = 0; i < 3; i++) {
+			for (int i = 0; i < 3; i++)
+			{
 				valuesMagneticField[i] = event.values[i];
 			}
 			break;
 		}
 
-		boolean success = SensorManager.getRotationMatrix(matrixR, matrixI,
-				valuesAccelerometer, valuesMagneticField);
+		boolean success = SensorManager.getRotationMatrix(matrixR, matrixI, valuesAccelerometer, valuesMagneticField);
 		log(success + "  success");
-		if (success) {
+		if (success)
+		{
 			SensorManager.getOrientation(matrixR, matrixValues);
-			synchronized (this) {
+			synchronized (this)
+			{
 				azimuth = Math.toDegrees(matrixValues[0]);
 				pitch = Math.toDegrees(matrixValues[1]);
 				roll = Math.toDegrees(matrixValues[2]);
 			}
 		}
 	}
-	
-	/**
-	 * Gets the azimuth
-	 * @return the azimuth
-	 */
-	public synchronized double getAzimuth() {
+
+	public synchronized double getAzimuth()
+	{
 		return azimuth;
 	}
 
-	/**
-	 * Gets the pitch
-	 * @return the pitch
-	 */
-	public synchronized double getPitch() {
+	public synchronized double getPitch()
+	{
 		return pitch;
 	}
 
-	/**
-	 * Gets the roll
-	 * @return the roll
-	 */
-	public synchronized double getRoll() {
+	public synchronized double getRoll()
+	{
 		return roll;
 	}
-//	@Override
-//	public void onPause() {
-//		sensorManager.unregisterListener((SensorEventListener) this, sensorAccelerometer);
-//		sensorManager.unregisterListener((SensorEventListener) this, sensorMagneticField);
-//		super.onPause();
-//	}
-
-//	@Override
-//	protected void onResume() {
-//
-//		sensorManager.registerListener((SensorEventListener) this, sensorAccelerometer,
-//				SensorManager.SENSOR_DELAY_NORMAL);
-//		sensorManager.registerListener((SensorEventListener) this, sensorMagneticField,
-//				SensorManager.SENSOR_DELAY_NORMAL);
-//		super.onResume();
-//	}
 }
-/*
-Skip to content
-Sign up Sign in This repository
-Explore
-Features
-Enterprise
-Blog
- Star 376  Fork 208 ytai/ioio
- branch: master ioio / software / applications / pc / HelloSequencer / src / ioio / examples / hello_sequencer / HelloSequencer.java
-Ytai Ben-Tsviytai on Jan 8 software: Added a HelloSequencer example
-1 contributor
-121 lines (105 sloc)  4.508 kb RawBlameHistory   
-package ioio.examples.hello_sequencer;
-
-import ioio.lib.api.DigitalOutput;
-import ioio.lib.api.Sequencer;
-import ioio.lib.api.Sequencer.ChannelConfig;
-import ioio.lib.api.Sequencer.ChannelConfigBinary;
-import ioio.lib.api.Sequencer.ChannelConfigPwmSpeed;
-import ioio.lib.api.Sequencer.ChannelConfigSteps;
-import ioio.lib.api.Sequencer.ChannelCueBinary;
-import ioio.lib.api.Sequencer.ChannelCuePwmSpeed;
-import ioio.lib.api.Sequencer.ChannelCueSteps;
-import ioio.lib.api.Sequencer.Clock;
-import ioio.lib.api.exception.ConnectionLostException;
-import ioio.lib.util.BaseIOIOLooper;
-import ioio.lib.util.IOIOLooper;
-import ioio.lib.util.pc.IOIOConsoleApp;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-
-public class HelloSequencer extends IOIOConsoleApp {
-
-	// Boilerplate main(). Copy-paste this code into any IOIOapplication.
-	public static void main(String[] args) throws Exception {
-		new HelloSequencer().go(args);
-	}
-
-	@Override
-	protected void run(String[] args) throws IOException {
-		BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
-		boolean abort = false;
-		String line;
-		while (!abort && (line = reader.readLine()) != null) {
-			if (line.equals("q")) {
-				abort = true;
-			} else {
-				System.out.println("Unknown input. q=quit.");
-			}
-		}
-	}
-
-	@Override
-	public IOIOLooper createIOIOLooper(String connectionType, Object extra) {
-		return new BaseIOIOLooper() {
-			private boolean dir_ = false;
-			private int color_ = 0;
-
-			private Sequencer.ChannelCueBinary led1Cue_ = new ChannelCueBinary();
-			private Sequencer.ChannelCueBinary led2Cue_ = new ChannelCueBinary();
-			private Sequencer.ChannelCueBinary led3Cue_ = new ChannelCueBinary();
-			private Sequencer.ChannelCuePwmSpeed dcMotorACue_ = new ChannelCuePwmSpeed();
-			private Sequencer.ChannelCuePwmSpeed dcMotorBCue_ = new ChannelCuePwmSpeed();
-			private Sequencer.ChannelCueBinary stepperDirCue_ = new ChannelCueBinary();
-			private Sequencer.ChannelCueSteps stepperStepCue_ = new ChannelCueSteps();
-
-			private Sequencer.ChannelCue[] cue_ = new Sequencer.ChannelCue[] { led1Cue_, led2Cue_,
-					led3Cue_, dcMotorACue_, dcMotorBCue_, stepperDirCue_, stepperStepCue_ };
-			private Sequencer sequencer_;
-
-			@Override
-			protected void setup() throws ConnectionLostException, InterruptedException {
-				final ChannelConfigBinary led1Config = new Sequencer.ChannelConfigBinary(true,
-						true, new DigitalOutput.Spec(5, DigitalOutput.Spec.Mode.OPEN_DRAIN));
-				final ChannelConfigBinary led2Config = new Sequencer.ChannelConfigBinary(true,
-						true, new DigitalOutput.Spec(6, DigitalOutput.Spec.Mode.OPEN_DRAIN));
-				final ChannelConfigBinary led3Config = new Sequencer.ChannelConfigBinary(true,
-						true, new DigitalOutput.Spec(7, DigitalOutput.Spec.Mode.OPEN_DRAIN));
-				final ChannelConfigPwmSpeed dcMotorAConfig = new Sequencer.ChannelConfigPwmSpeed(
-						Sequencer.Clock.CLK_2M, 2000, 0, new DigitalOutput.Spec(1));
-				final ChannelConfigPwmSpeed dcMotorBConfig = new Sequencer.ChannelConfigPwmSpeed(
-						Sequencer.Clock.CLK_2M, 2000, 0, new DigitalOutput.Spec(2));
-				final ChannelConfigBinary stepperDirConfig = new Sequencer.ChannelConfigBinary(
-						false, false, new DigitalOutput.Spec(3));
-				final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(
-						new DigitalOutput.Spec(4));
-				final ChannelConfig[] config = new ChannelConfig[] { led1Config, led2Config,
-						led3Config, dcMotorAConfig, dcMotorBConfig, stepperDirConfig,
-						stepperStepConfig };
-
-				sequencer_ = ioio_.openSequencer(config);
-
-				// Pre-fill.
-				sequencer_.waitEventType(Sequencer.Event.Type.STOPPED);
-				while (sequencer_.available() > 0) {
-					push();
-				}
-
-				sequencer_.start();
-			}
-
-			@Override
-			public void loop() throws ConnectionLostException, InterruptedException {
-				push();
-			}
-
-			private void push() throws ConnectionLostException, InterruptedException {
-				stepperStepCue_.clk = Clock.CLK_2M;
-				stepperStepCue_.pulseWidth = 2;
-				stepperStepCue_.period = 400;
-				if (dir_) {
-					dcMotorACue_.pulseWidth = 1000;
-					dcMotorBCue_.pulseWidth = 0;
-					stepperDirCue_.value = false;
-				} else {
-					dcMotorACue_.pulseWidth = 0;
-					dcMotorBCue_.pulseWidth = 1000;
-					stepperDirCue_.value = true;
-				}
-				led1Cue_.value = (color_ & 1) == 0;
-				led2Cue_.value = (color_ & 2) == 0;
-				led3Cue_.value = (color_ & 4) == 0;
-
-				sequencer_.push(cue_, 62500 / 2);
-				dir_ = !dir_;
-				color_++;
-			}
-		};
-	}
-}
-*/
