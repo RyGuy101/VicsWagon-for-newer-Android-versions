@@ -1,7 +1,7 @@
 package ioio.examples.hello;
 
 /**************************************************************************
- * Happy version 141006A Single step works...trying to get sequencer working
+ * Happy version 141013A Sequencer works with both wheels FM Speed
  **************************************************************************/
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.PwmOutput;
@@ -41,33 +41,19 @@ public class MainActivity extends IOIOActivity
 	private static final int RIGHT_STROBE_ULTRASONIC_OUTPUT_PIN = 15;
 	private static final int FRONT_ULTRASONIC_INPUT_PIN = 12;
 	private static final int REAR_ULTRASONIC_INPUT_PIN = 10;// input to ioio
-															// board
 	private static final int RIGHT_ULTRASONIC_INPUT_PIN = 11;
 	private static final int LEFT_ULTRASONIC_INPUT_PIN = 13;
-	private static final int MOTOR_ENABLE_PIN = 3;// Low turns off all power to
-	// both motors
-	private static final int MOTOR_RIGHT_DIRECTION_OUTPUT_PIN = 20;// High means
-	// clockwise
-	private static final int MOTOR_LEFT_DIRECTION_OUTPUT_PIN = 21;
+	private static final int MOTOR_ENABLE_PIN = 3;// Low turns both motors
+	private static final int MOTOR_RIGHT_DIRECTION_PIN = 20;// High => cw
+	private static final int MOTOR_LEFT_DIRECTION_PIN = 21;
 	private static final int MOTOR_CONTROLLER_CONTROL_PIN = 6;// For both motors
-	private static final int REAR_STROBE_ULTRASONIC_OUTPUT_PIN = 14;// output
-	// from ioio
-	// board
+	private static final int REAR_STROBE_ULTRASONIC_OUTPUT_PIN = 14;// ioio
+																	// output
 	private static final int MOTOR_HALF_FULL_STEP_PIN = 7;// For both motors
 	private static final int MOTOR_RESET = 22;// For both motors
 	private static final int MOTOR_CLOCK_LEFT_PIN = 27;
 	private static final int MOTOR_CLOCK_RIGHT_PIN = 28;
-	final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-	final ChannelConfigFmSpeed stepperFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_2M, 10,
-			new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-	final ChannelConfig[] config = new ChannelConfig[] { stepperFMspeedConfig };
-	private Sequencer sequencer;
-	private Sequencer.ChannelCueBinary stepperDirCue = new ChannelCueBinary();
-	private Sequencer.ChannelCueSteps stepperStepCue = new ChannelCueSteps();
-	private Sequencer.ChannelCueFmSpeed stepperFMspeedCue = new ChannelCueFmSpeed();
-	private Sequencer.ChannelCue[] queue = new Sequencer.ChannelCue[] { stepperFMspeedCue };
-	final ChannelConfigBinary stepperDirConfig = new Sequencer.ChannelConfigBinary(false, false,
-			new DigitalOutput.Spec(MOTOR_RIGHT_DIRECTION_OUTPUT_PIN));
+	private int i = 0;
 	private ToggleButton button;
 	public UltraSonicSensor sonar;
 	private TextView mText;
@@ -87,21 +73,33 @@ public class MainActivity extends IOIOActivity
 	private DigitalOutput led;// The on-board LED
 	private int pulseWidth = 10;// microseconds
 	private int rightStepperMotorPeriod = 60000;
+	private int leftStepperMotorPeriod = 60000;
 	private DigitalOutput rightMotorClockPulse;
 	private DigitalOutput leftMotorClockPulse;
 	private DigitalOutput motorEnable; // Both motors
 	private DigitalOutput rightMotorClock; // Step right motor
 	private DigitalOutput leftMotorClock; // Step left motor
-	private DigitalOutput motorCongtrollerReset;
-	private DigitalOutput rightMotorControl; // Motor decay mode
+	private DigitalOutput motorControllerReset;
 	private DigitalOutput rightMotorDirection;
 	private DigitalOutput leftMotorDirection;
 	private DigitalOutput motorControllerControl;// Decay mode selector, high =
 													// slow decay, low = fast
-													// decay
 	private DigitalOutput halfFull;
 	private DigitalOutput reset; // Must be true for motors to run.
 	private DigitalOutput control;// Decay mode selector high = slow, low = fast
+	final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+	final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_2M, 10, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+	final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_2M, 10, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
+	final ChannelConfigBinary stepperRightDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_RIGHT_DIRECTION_PIN));
+	final ChannelConfigBinary stepperLeftDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_LEFT_DIRECTION_PIN));
+	final ChannelConfig[] channelConfigList = new ChannelConfig[] { stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig//stepperStepConfig
+	private Sequencer sequencer;
+	private Sequencer.ChannelCueBinary stepperDirCue = new ChannelCueBinary();
+	private Sequencer.ChannelCueSteps stepperStepCue = new ChannelCueSteps();
+	private Sequencer.ChannelCueFmSpeed stepperRightFMspeedCue = new ChannelCueFmSpeed();
+	private Sequencer.ChannelCueFmSpeed stepperLeftFMspeedCue = new ChannelCueFmSpeed();
+	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] { stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
+	
 
 	@Override
 	public void onCreate(Bundle savedInstanceState)
@@ -129,21 +127,23 @@ public class MainActivity extends IOIOActivity
 		{
 			sonar = new UltraSonicSensor(ioio_);
 			led = ioio_.openDigitalOutput(0, true);
-			rightMotorDirection = ioio_.openDigitalOutput(MOTOR_RIGHT_DIRECTION_OUTPUT_PIN, true);
-			leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_OUTPUT_PIN, false);
-			motorCongtrollerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
+			rightMotorDirection = ioio_.openDigitalOutput(MOTOR_RIGHT_DIRECTION_PIN, true);
+			leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_PIN, false);
+			motorControllerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
 			motorEnable = ioio_.openDigitalOutput(MOTOR_ENABLE_PIN, true);// enable
-			rightMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_RIGHT_PIN, false);// step
-			leftMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_LEFT_PIN, false);
-			rightMotorControl = ioio_.openDigitalOutput(MOTOR_CONTROLLER_CONTROL_PIN, false);// fast
+			// rightMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_RIGHT_PIN,
+			// false);// step
+			// leftMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_LEFT_PIN,
+			// false);
+			motorControllerControl = ioio_.openDigitalOutput(MOTOR_CONTROLLER_CONTROL_PIN, false);// fast
 																								// decay
 			try
 			{
-				sequencer = ioio_.openSequencer(config);
+				sequencer = ioio_.openSequencer(channelConfigList);
 				sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
-				while (sequencer.available() > 0)
+				//while (sequencer.available() > 0)
 				{
-					push();
+					addCueToCueList();
 				}
 				sequencer.start();
 
@@ -161,13 +161,17 @@ public class MainActivity extends IOIOActivity
 				led.write(false);
 				try
 				{
-					Thread.sleep(1000);
-					rightMotorClock.write(true);
-					rightMotorClock.write(false);
-					leftMotorClock.write(true);
-					leftMotorClock.write(false);
-					// push();
-					log(String.valueOf(sonar.getFrontDistance() + " " + sonar.getLeftDistance() + " " + getAzimuth()));
+					// Thread.sleep(1000);
+					// rightMotorClock.write(true);
+					// rightMotorClock.write(false);
+					// leftMotorClock.write(true);
+					// leftMotorClock.write(false);
+//					if (sequencer.available() > 0)//pre load cue list
+//					{
+//						addCueToCueList();
+//					}
+					// log(String.valueOf(sonar.getFrontDistance() + " " +
+					// sonar.getLeftDistance() + " " + getAzimuth()));
 
 				} catch (Exception e)
 				{
@@ -179,12 +183,17 @@ public class MainActivity extends IOIOActivity
 		}
 	}
 
-	private void push()
+	private void addCueToCueList()
 	{
-		stepperFMspeedCue.period = rightStepperMotorPeriod *= .9;
+		stepperRightFMspeedCue.period = rightStepperMotorPeriod / 4;
+		stepperLeftFMspeedCue.period = leftStepperMotorPeriod / 4;
 		try
 		{
-			sequencer.push(queue, 62500);
+			// stepperStepCue.clk = Clock.CLK_2M;
+			// stepperStepCue.pulseWidth = 2;
+			// stepperStepCue.period = 400;
+			sequencer.push(cueList, 62500);
+			log("AddCueToQueue " + i++);
 		} catch (Exception e)
 		{
 		}
