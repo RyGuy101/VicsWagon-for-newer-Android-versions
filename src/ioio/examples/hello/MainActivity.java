@@ -1,18 +1,20 @@
 package ioio.examples.hello;
 
-/**************************************************************************
- * Happy version 141103A Sequencer works with both wheels FM Speed
- * Changed decay mode to slow
- * added timing examples for PW spec = 10, cue duration = 60000, FMspeedCue.period = 60000
+/******************************************************************************************
+ * Happy version 141108A Sequencer works with both wheels FM Speed
+ * Changed decay mode to slow for lower power dissipation
+ * added timing examples for PW spec = 2, cue duration = 60000, FMspeedCue.period = 600
+ * default queue size is 32...to change queue size:
+ * sequencer.setEventQueueSize(newSize);
  * Time Base:
  * 1/16 microseconds = 62.5 nanoseconds.Clk_16M
  * 1/2 microseconds = 500 nanoseconds.Clk_2M
  * 4 microseconds...Clk_250K
  * 16 microseconds...Clk_62K5 
- * Pulse width = 10/62500 seconds = 160 microsecs
- * Period = 60000/62500 seconds = .96 secs
- * Cue duration = 60000 * 16us = .96 secs
- **************************************************************************/
+ * Pulse width = 2/62500 seconds = 32 microsecs (multiple of clock period)
+ * Period = 600/62500 seconds = .0096 secs (multiple of clock period)
+ * Cue duration = 60000 * 16us = .96 secs (cue duration is always a multiple of 16 microsecs)
+ ********************************************************************************************/
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.PwmOutput;
 import ioio.lib.api.Sequencer;
@@ -89,11 +91,11 @@ public class MainActivity extends IOIOActivity
 	private DigitalOutput rightMotorDirection;
 	private DigitalOutput leftMotorDirection;
 	private DigitalOutput motorControllerControl;// Decay mode high => slow
-	private DigitalOutput halfFull;//High => half step
+	private DigitalOutput halfFull;// High => half step
 	private DigitalOutput reset; // Must be true for motors to run.
 	final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-	final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 10, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-	final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 10, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
+	final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+	final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
 	final ChannelConfigBinary stepperRightDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_RIGHT_DIRECTION_PIN));
 	final ChannelConfigBinary stepperLeftDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_LEFT_DIRECTION_PIN));
 	final ChannelConfig[] channelConfigList = new ChannelConfig[] { stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig//stepperStepConfig
@@ -102,7 +104,7 @@ public class MainActivity extends IOIOActivity
 	private Sequencer.ChannelCueFmSpeed stepperRightFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCueFmSpeed stepperLeftFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] { stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
-	
+
 	@Override
 	public void onCreate(Bundle savedInstanceState)
 	{
@@ -134,22 +136,22 @@ public class MainActivity extends IOIOActivity
 			motorControllerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
 			motorEnable = ioio_.openDigitalOutput(MOTOR_ENABLE_PIN, true);// enable
 			motorControllerControl = ioio_.openDigitalOutput(MOTOR_CONTROLLER_CONTROL_PIN, true);// slow
-			halfFull = ioio_.openDigitalOutput(MOTOR_HALF_FULL_STEP_PIN, false);//Full step
+			halfFull = ioio_.openDigitalOutput(MOTOR_HALF_FULL_STEP_PIN, false);// Full
+																				// step
 			try
 			{
 				sequencer = ioio_.openSequencer(channelConfigList);
 				sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
-				stepperRightFMspeedCue.period = 60000;
-				stepperLeftFMspeedCue.period = 60000;
-				 while (sequencer.available() > 0)
+				stepperRightFMspeedCue.period = 600;
+				stepperLeftFMspeedCue.period = 600;
+				while (sequencer.available() > 0) // fill cue 
 				{
-					// for (int i = 0; i < 10; i++)
-						{
-						 sequencer.push(cueList, 60000);
-							log("step");
-						}
+					{
+						sequencer.push(cueList, 60000);
+						log("step");
+					}
 				}
-				
+
 				sequencer.start();
 
 			} catch (Exception e)
@@ -165,10 +167,10 @@ public class MainActivity extends IOIOActivity
 				led.write(false);
 				try
 				{
-//					 if (sequencer.available() > 0)//pre load cue list
-//					 {
-//					 addCueToCueList();
-//					 }
+					// if (sequencer.available() > 0)//pre load cue list
+					// {
+					// addCueToCueList();
+					// }
 					// log(String.valueOf(sonar.getFrontDistance() + " " +
 					// sonar.getLeftDistance() + " " + getAzimuth()));
 
