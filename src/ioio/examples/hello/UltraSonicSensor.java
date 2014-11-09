@@ -11,7 +11,6 @@ import ioio.lib.api.exception.ConnectionLostException;
 import android.os.SystemClock;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.ToggleButton;
 
 /**
  * An UltraSonicSensors instance is used to access three ultrasonic sensors
@@ -22,7 +21,6 @@ import android.widget.ToggleButton;
  */
 public class UltraSonicSensor {
 	private IOIO ioio;
-	private ToggleButton button_;
 	private TextView log;
 	private ScrollView scroller;
 	private int frontDistance;
