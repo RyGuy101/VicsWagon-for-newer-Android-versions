@@ -94,23 +94,20 @@ public class VicsWagon
 	private DigitalOutput leftMotorDirection;
 	private DigitalOutput motorControllerControl;// Decay mode high => slow
 	private DigitalOutput halfFull;// High => half step
-	private DigitalOutput reset; // Must be true for motors to run.
+	private Sequencer sequencer;
 	final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-	final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-	final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
 	final ChannelConfigBinary stepperRightDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_RIGHT_DIRECTION_PIN));
 	final ChannelConfigBinary stepperLeftDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_LEFT_DIRECTION_PIN));
-	final ChannelConfig[] channelConfigList = new ChannelConfig[] { stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig//stepperStepConfig
-	private Sequencer sequencer;
 	private Sequencer.ChannelCueBinary stepperDirCue = new ChannelCueBinary();
 	private Sequencer.ChannelCueFmSpeed stepperRightFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCueFmSpeed stepperLeftFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] { stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
-	
+
 	public VicsWagon(IOIO ioio_)
 	{
 		this.ioio_ = ioio_;
 	}
+
 	public void configureVicsWagonStandard()
 	{
 		try
@@ -121,16 +118,26 @@ public class VicsWagon
 			motorEnable = ioio_.openDigitalOutput(MOTOR_ENABLE_PIN, true);// enable
 			motorControllerControl = ioio_.openDigitalOutput(MOTOR_CONTROLLER_CONTROL_PIN, true);// slow
 			halfFull = ioio_.openDigitalOutput(MOTOR_HALF_FULL_STEP_PIN, false);// Full
-																				// step
+			leftMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_LEFT_PIN, true);
+			rightMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_RIGHT_PIN, true);
+			rightMotorClock.write(false);
+			rightMotorClock.write(true);
+			leftMotorClock.write(false);
+			leftMotorClock.write(true);
+			leftMotorClock.close();
+			rightMotorClock.close();
+			final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+			final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
+			final ChannelConfig[] channelConfigList = new ChannelConfig[] { stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig
 			sequencer = ioio_.openSequencer(channelConfigList);
 			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
 			stepperRightFMspeedCue.period = 600;
 			stepperLeftFMspeedCue.period = 600;
-			while (sequencer.available() > 0) // fill cue 
+			while (sequencer.available() > 0) // fill cue
 			{
 				{
 					sequencer.push(cueList, 60000);
-					//log("step");
+					// log("step");
 				}
 			}
 
