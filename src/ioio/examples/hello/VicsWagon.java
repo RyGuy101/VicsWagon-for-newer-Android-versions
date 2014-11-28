@@ -84,8 +84,6 @@ public class VicsWagon
 	private double pitch;
 	private double roll;
 	private DigitalOutput led;// The on-board LED
-	private DigitalOutput rightMotorClockPulse;
-	private DigitalOutput leftMotorClockPulse;
 	private DigitalOutput motorEnable; // Both motors
 	private DigitalOutput rightMotorClock; // Step right motor
 	private DigitalOutput leftMotorClock; // Step left motor
@@ -112,27 +110,25 @@ public class VicsWagon
 	{
 		try
 		{
-			rightMotorDirection = ioio_.openDigitalOutput(MOTOR_RIGHT_DIRECTION_PIN, true);
-			leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_PIN, false);
-			motorControllerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
-			motorEnable = ioio_.openDigitalOutput(MOTOR_ENABLE_PIN, true);// enable
-			motorControllerControl = ioio_.openDigitalOutput(MOTOR_CONTROLLER_CONTROL_PIN, true);// slow
 			halfFull = ioio_.openDigitalOutput(MOTOR_HALF_FULL_STEP_PIN, false);// Full
-			leftMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_LEFT_PIN, true);
-			rightMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_RIGHT_PIN, true);
-			rightMotorClock.write(false);
-			rightMotorClock.write(true);
-			leftMotorClock.write(false);
-			leftMotorClock.write(true);
-			leftMotorClock.close();
-			rightMotorClock.close();
+			rightMotorDirection = ioio_.openDigitalOutput(MOTOR_RIGHT_DIRECTION_PIN, true);// forward
+			leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_PIN, false);
+			motorControllerControl = ioio_.openDigitalOutput(MOTOR_CONTROLLER_CONTROL_PIN, true);// slow
+			motorEnable = ioio_.openDigitalOutput(MOTOR_ENABLE_PIN, true);// enable
+			motorControllerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
+			motorControllerReset.write(false);
+			motorControllerReset.write(true);
 			final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
 			final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
 			final ChannelConfig[] channelConfigList = new ChannelConfig[] { stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig
+			
+			setUpMotorControllerChipForWaveDrive();
+			
 			sequencer = ioio_.openSequencer(channelConfigList);
 			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
 			stepperRightFMspeedCue.period = 600;
 			stepperLeftFMspeedCue.period = 600;
+			
 			while (sequencer.available() > 0) // fill cue
 			{
 				{
@@ -144,6 +140,44 @@ public class VicsWagon
 			sequencer.start();
 
 		} catch (Exception e)
+		{
+		}
+	}
+
+	/*********************************************************************************
+	 * Wave drive mode (full step one phase on) A LOW level on the pin HALF/FULL
+	 * input selects the full step mode. When the low level is applied when the
+	 * state machine is at an EVEN numbered state the wave drive mode is
+	 * selected. To enter the wave drive mode the state machine must be in an
+	 * EVEN numbered state. The most direct method to select the wave drive mode
+	 * is to first apply a RESET, then while keeping the HALF/FULL input high
+	 * apply one pulse to the clock input then take the HALF/FULL input low.
+	 * This sequence first forces the state machine to state 1. The clock pulse,
+	 * with the HALF/FULL input high advances the state machine from state 1 to
+	 * either state 2 or 8 depending on the CW/CCW input. Starting from this
+	 * point, after each clock pulse (rising edge) will advance the state
+	 * machine following the sequence 2, 4, 6, 8, etc. if CW/CCW is high
+	 * (clockwise movement) or 8, 6, 4, 2, etc. if CW/CCW is low
+	 * (counterclockwise movement).
+	 **********************************************************************************/
+	public void setUpMotorControllerChipForWaveDrive()
+	{
+		try
+		{
+			leftMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_LEFT_PIN, true);
+			rightMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_RIGHT_PIN, true);
+			motorControllerReset.write(false);
+			motorControllerReset.write(true);
+			halfFull.write(true);// Half
+			rightMotorClock.write(false);
+			rightMotorClock.write(true);
+			leftMotorClock.write(false);
+			leftMotorClock.write(true);
+			halfFull.write(false);// Full
+			leftMotorClock.close();
+			rightMotorClock.close();
+
+		} catch (ConnectionLostException e)
 		{
 		}
 	}

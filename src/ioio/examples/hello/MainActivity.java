@@ -1,8 +1,8 @@
 package ioio.examples.hello;
 
 /******************************************************************************************
- * Happy version 141125A
- * Attempting to set up wave stepping
+ * Happy version 141127A
+ * Wave Stepping...not verified with scope
  ********************************************************************************************/
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.exception.ConnectionLostException;
@@ -54,6 +54,7 @@ public class MainActivity extends IOIOActivity
 		@Override
 		public void loop() throws ConnectionLostException
 		{
+			log("loop");
 			if (button.isChecked())
 			{
 				led.write(false);
