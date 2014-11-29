@@ -97,6 +97,9 @@ public class VicsWagon
 	final ChannelConfigBinary stepperRightDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_RIGHT_DIRECTION_PIN));
 	final ChannelConfigBinary stepperLeftDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_LEFT_DIRECTION_PIN));
 	private Sequencer.ChannelCueBinary stepperDirCue = new ChannelCueBinary();
+	final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+	final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
+	final ChannelConfig[] channelConfigList = new ChannelConfig[] { stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig
 	private Sequencer.ChannelCueFmSpeed stepperRightFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCueFmSpeed stepperLeftFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] { stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
@@ -106,6 +109,22 @@ public class VicsWagon
 		this.ioio_ = ioio_;
 	}
 
+	public void runRobotTest()
+	{
+		try
+		{
+			while (sequencer.available() > 0) // fill cue
+			{
+				{
+					sequencer.push(cueList, 60000);
+				}
+			}
+			sequencer.start();
+		} catch (Exception e)
+		{
+		}
+	
+	}
 	public void configureVicsWagonStandard()
 	{
 		try
@@ -118,30 +137,15 @@ public class VicsWagon
 			motorControllerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
 			motorControllerReset.write(false);
 			motorControllerReset.write(true);
-			final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-			final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
-			final ChannelConfig[] channelConfigList = new ChannelConfig[] { stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig
-			
 			setUpMotorControllerChipForWaveDrive();
-			
 			sequencer = ioio_.openSequencer(channelConfigList);
 			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
 			stepperRightFMspeedCue.period = 600;
 			stepperLeftFMspeedCue.period = 600;
-			
-			while (sequencer.available() > 0) // fill cue
-			{
-				{
-					sequencer.push(cueList, 60000);
-					// log("step");
-				}
-			}
-
-			sequencer.start();
-
 		} catch (Exception e)
 		{
 		}
+		runRobotTest();
 	}
 
 	/*********************************************************************************
@@ -180,5 +184,28 @@ public class VicsWagon
 		} catch (ConnectionLostException e)
 		{
 		}
+	}
+	
+	/***********************************************************************************************************
+	A HIGH logic level on the HALF/FULL input selects Half Step Mode. At Start-Up or after a RESET the Phase Sequencer
+	is at state 1. After each clock pulse the state changes following the sequence 1,2,3,4,5,6,7,8,… if CW/
+	CCW is high (Clockwise movement) or 1,8,7,6,5,4,3,2,… if CW/CCW is low (Counterclockwise movement).
+	*************************************************************************************************************/
+	public void setUpMotrollerChipForHalfStepDrive()
+	{
+		
+	}
+	
+	/***********************************************************************************************************
+	A LOW level on the HALF/FULL input selects the Full Step mode. When the low level is applied when the state
+	machine is at an ODD numbered state the Normal Drive Mode is selected.  The Normal Drive Mode
+	can easily be selected by holding the HALF/FULL input low and applying a RESET. AT start -up or after a RESET
+	the State Machine is in state1. While the HALF/FULL input is kept low, state changes following the sequence
+	1,3,5,7,… if CW/CCW is high (Clockwise movement) or 1,7,5,3,… if CW/CCW is low (Counterclockwise
+	movement).
+	*************************************************************************************************************/
+	public void setUpMotrollerChipForFullStepDrive()
+	{
+		
 	}
 }

@@ -1,8 +1,8 @@
 package ioio.examples.hello;
 
 /******************************************************************************************
- * Happy version 141127A
- * Wave Stepping...not verified with scope
+ * Happy version 141128A
+ * Added comments for Full and Half Step modes
  ********************************************************************************************/
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.exception.ConnectionLostException;
@@ -26,7 +26,7 @@ public class MainActivity extends IOIOActivity
 	private TextToSpeech mTts;
 	private SensorManager sensorManager;
 	private DigitalOutput led;// The on-board LED
-	Accelerometer accelerometer;
+	private Accelerometer accelerometer;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState)
