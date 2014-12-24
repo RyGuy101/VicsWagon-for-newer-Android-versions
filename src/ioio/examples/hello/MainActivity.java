@@ -1,8 +1,9 @@
 package ioio.examples.hello;
 
 /******************************************************************************************
- * Happy version 141128A
+ * Happy version 141223A
  * Added comments for Full and Half Step modes
+ * Added sine wave acceleration/deceleration method
  ********************************************************************************************/
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.exception.ConnectionLostException;

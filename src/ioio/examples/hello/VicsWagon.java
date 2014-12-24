@@ -103,6 +103,8 @@ public class VicsWagon
 	private Sequencer.ChannelCueFmSpeed stepperRightFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCueFmSpeed stepperLeftFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] { stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
+	private int MAX_FM_SPEED_PERIOD;
+	private int MIN_FM_SPEED_PERIOD;
 
 	public VicsWagon(IOIO ioio_)
 	{
@@ -111,11 +113,19 @@ public class VicsWagon
 
 	public void runRobotTest()
 	{
+		int sinePeriod = 0;
 		try
 		{
 			while (sequencer.available() > 0) // fill cue
 			{
 				{
+					/* Untested*/
+//					for(int i = 0; i < 628; i++)
+//					{
+//						sinePeriod = (int)((MAX_FM_SPEED_PERIOD * (1 + Math.cos(Math.toRadians(i/100))) + MIN_FM_SPEED_PERIOD));
+//						stepperRightFMspeedCue.period = sinePeriod;
+//						stepperLeftFMspeedCue.period = sinePeriod;
+//					}
 					sequencer.push(cueList, 60000);
 				}
 			}
@@ -208,4 +218,5 @@ public class VicsWagon
 	{
 		
 	}
+	
 }
