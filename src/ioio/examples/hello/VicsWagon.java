@@ -103,30 +103,39 @@ public class VicsWagon
 	private Sequencer.ChannelCueFmSpeed stepperRightFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCueFmSpeed stepperLeftFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] { stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
-	private int MAX_FM_SPEED_PERIOD;
-	private int MIN_FM_SPEED_PERIOD;
+	private int MAX_FM_SPEED_PERIOD = 60000;
+	private int MIN_FM_SPEED_PERIOD = 600;
+	public MainActivity main;
+
+	public void setMain(MainActivity main)
+	{
+		this.main = main;
+	}
 
 	public VicsWagon(IOIO ioio_)
 	{
 		this.ioio_ = ioio_;
 	}
-
+	
 	public void runRobotTest()
 	{
 		int sinePeriod = 0;
 		try
 		{
+//			stepperRightFMspeedCue.period = 600;
+//			stepperLeftFMspeedCue.period = 600;
 			while (sequencer.available() > 0) // fill cue
 			{
 				{
 					/* Untested*/
-//					for(int i = 0; i < 628; i++)
+//					for(int i = 0; i < 314; i++)
 //					{
-//						sinePeriod = (int)((MAX_FM_SPEED_PERIOD * (1 + Math.cos(Math.toRadians(i/100))) + MIN_FM_SPEED_PERIOD));
+//						sinePeriod = (int)((MAX_FM_SPEED_PERIOD * (1 + Math.cos(1/100)) + MIN_FM_SPEED_PERIOD));
 //						stepperRightFMspeedCue.period = sinePeriod;
 //						stepperLeftFMspeedCue.period = sinePeriod;
+//						sequencer.push(cueList, 600);
 //					}
-					sequencer.push(cueList, 60000);
+					sequencer.push(cueList, 6000);
 				}
 			}
 			sequencer.start();
@@ -150,8 +159,6 @@ public class VicsWagon
 			setUpMotorControllerChipForWaveDrive();
 			sequencer = ioio_.openSequencer(channelConfigList);
 			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
-			stepperRightFMspeedCue.period = 600;
-			stepperLeftFMspeedCue.period = 600;
 		} catch (Exception e)
 		{
 		}
