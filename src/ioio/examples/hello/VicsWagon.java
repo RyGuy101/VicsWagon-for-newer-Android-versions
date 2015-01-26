@@ -122,8 +122,8 @@ public class VicsWagon
 		int sinePeriod = 0;
 		try
 		{
-//			stepperRightFMspeedCue.period = 600;
-//			stepperLeftFMspeedCue.period = 600;
+			stepperRightFMspeedCue.period = 600;
+			stepperLeftFMspeedCue.period = 600;
 			while (sequencer.available() > 0) // fill cue
 			{
 				{

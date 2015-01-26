@@ -1,7 +1,7 @@
 package ioio.examples.hello;
 
 /******************************************************************************************
- * Happy version 141223A
+ * Happy version 150126...first AndroidStudio (intelliJ) version
  * Added comments for Full and Half Step modes
  * Added sine wave acceleration/deceleration method
  ********************************************************************************************/
@@ -28,6 +28,7 @@ public class MainActivity extends IOIOActivity
 	private SensorManager sensorManager;
 	private DigitalOutput led;// The on-board LED
 	private Accelerometer accelerometer;
+    private VicsWagon vw;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState)
@@ -46,7 +47,7 @@ public class MainActivity extends IOIOActivity
 		protected void setup() throws ConnectionLostException
 		{
 			accelerometer = new Accelerometer(sensorManager, ioio_);
-			VicsWagon vw = new VicsWagon(ioio_);
+			vw = new VicsWagon(ioio_);
 			sonar = new UltraSonicSensor(ioio_);
 			led = ioio_.openDigitalOutput(0, true);
 			vw.configureVicsWagonStandard();
@@ -55,10 +56,10 @@ public class MainActivity extends IOIOActivity
 		@Override
 		public void loop() throws ConnectionLostException
 		{
-			log("loop");
 			if (button.isChecked())
 			{
 				led.write(false);
+                vw.runRobotTest();
 			} else
 			{
 				led.write(true);
