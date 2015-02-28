@@ -3,7 +3,6 @@ package ioio.examples.hello;
 /******************************************************************************************
  * Happy version 150126...first AndroidStudio (intelliJ) version
  * Added comments for Full and Half Step modes
- * Added sine wave acceleration/deceleration method
  ********************************************************************************************/
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.exception.ConnectionLostException;
@@ -56,10 +55,10 @@ public class MainActivity extends IOIOActivity
 		@Override
 		public void loop() throws ConnectionLostException
 		{
+			vw.runRobotTest();
 			if (button.isChecked())
 			{
 				led.write(false);
-                vw.runRobotTest();
 			} else
 			{
 				led.write(true);
