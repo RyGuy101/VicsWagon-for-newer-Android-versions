@@ -1,8 +1,9 @@
 package ioio.examples.hello;
 
 /******************************************************************************************
- * Happy version 150126...first AndroidStudio (intelliJ) version
+ * Happy version 150228B...IntelliJ version
  * Added comments for Full and Half Step modes
+ * minor tweaks
  ********************************************************************************************/
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.exception.ConnectionLostException;
