@@ -128,7 +128,7 @@ public class VicsWagon {
 	public void runRobotTest() {
 		int sinePeriod = 0;
 		try {
-			stepperRightFMspeedCue.period = 400;
+			stepperRightFMspeedCue.period = 400;// 
 			stepperLeftFMspeedCue.period = 400;
 			sequencer = ioio_.openSequencer(channelConfigList);
 			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);

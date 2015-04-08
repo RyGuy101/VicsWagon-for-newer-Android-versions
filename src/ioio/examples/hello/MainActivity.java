@@ -21,7 +21,7 @@ import android.view.MenuItem;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-public class MainActivity extends IOIOActivity {
+public class MainActivity extends IOIOActivity {//
 	public UltraSonicSensor sonar;
 	private TextView mText;
 	private ScrollView mScroller;
