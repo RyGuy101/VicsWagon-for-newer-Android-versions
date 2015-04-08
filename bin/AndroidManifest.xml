@@ -1,24 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-	android:versionCode="1" android:versionName="1.0" package="ioio.examples.hello">
-	<uses-sdk android:minSdkVersion="8" />
-	<uses-permission android:name="android.permission.INTERNET" />
-	<uses-permission android:name="android.permission.BLUETOOTH" />
+<manifest xmlns:a="http://schemas.android.com/apk/res/android"
+    package="ioio.examples.hello"
+    a:versionCode="1"
+    a:versionName="1.0" >
 
-	<application android:icon="@drawable/icon" android:label="@string/app_name">
-		<uses-library android:name="com.android.future.usb.accessory"
-			android:required="false" />
-		<activity android:label="@string/app_name" android:name="MainActivity"
-			android:launchMode="singleTask">
-			<intent-filter>
-				<action android:name="android.intent.action.MAIN" />
-				<category android:name="android.intent.category.LAUNCHER" />
-			</intent-filter>
-			<intent-filter>
-				<action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
-			</intent-filter>
-			<meta-data android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
-				android:resource="@xml/accessory_filter" />
-		</activity>
-	</application>
+    <uses-sdk a:minSdkVersion="8" />
+
+    <uses-permission a:name="android.permission.INTERNET" />
+    <uses-permission a:name="android.permission.BLUETOOTH" />
+
+    <application
+        a:icon="@drawable/icon"
+        a:label="@string/app_name"
+        a:theme="@style/AppTheme" >
+        <uses-library
+            a:name="com.android.future.usb.accessory"
+            a:required="false" />
+
+        <activity
+            a:name="MainActivity"
+            a:label="@string/app_name"
+            a:launchMode="singleTask" >
+            <intent-filter>
+                <action a:name="android.intent.action.MAIN" />
+
+                <category a:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action a:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+
+            <meta-data
+                a:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                a:resource="@xml/accessory_filter" />
+        </activity>
+    </application>
+
 </manifest>

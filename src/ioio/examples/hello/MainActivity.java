@@ -5,6 +5,7 @@ package ioio.examples.hello;
  * Added comments for Full and Half Step modes
  * minor tweaks
  ********************************************************************************************/
+
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
@@ -14,13 +15,13 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.ToggleButton;
 
-public class MainActivity extends IOIOActivity
-{
-	private ToggleButton button;
+public class MainActivity extends IOIOActivity {
 	public UltraSonicSensor sonar;
 	private TextView mText;
 	private ScrollView mScroller;
@@ -28,24 +29,41 @@ public class MainActivity extends IOIOActivity
 	private SensorManager sensorManager;
 	private DigitalOutput led;// The on-board LED
 	private Accelerometer accelerometer;
-    private VicsWagon vw;
+	private VicsWagon vw;
+
+	private boolean powerOn = false;
 
 	@Override
-	public void onCreate(Bundle savedInstanceState)
-	{
+	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-		button = (ToggleButton) findViewById(R.id.button);
 		mText = (TextView) findViewById(R.id.logText);
 		mScroller = (ScrollView) findViewById(R.id.scroller);
 		sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 	}
 
-	class Looper extends BaseIOIOLooper
-	{
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		MenuInflater mi = getMenuInflater();
+		mi.inflate(R.menu.menu, menu);
+		return true;
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		if (!powerOn) {
+			item.setIcon(R.drawable.power_on);
+			powerOn = true;
+		} else {
+			item.setIcon(R.drawable.power_off);
+			powerOn = false;
+		}
+		return true;
+	}
+
+	class Looper extends BaseIOIOLooper {
 		@Override
-		protected void setup() throws ConnectionLostException
-		{
+		protected void setup() throws ConnectionLostException {
 			accelerometer = new Accelerometer(sensorManager, ioio_);
 			vw = new VicsWagon(ioio_);
 			sonar = new UltraSonicSensor(ioio_);
@@ -54,32 +72,24 @@ public class MainActivity extends IOIOActivity
 		}
 
 		@Override
-		public void loop() throws ConnectionLostException
-		{
-			vw.runRobotTest();
-			if (button.isChecked())
-			{
+		public void loop() throws ConnectionLostException {
+			if (powerOn) {
 				led.write(false);
-			} else
-			{
+				vw.runRobotTest();
+			} else {
 				led.write(true);
 			}
 		}
 	}
 
-
 	@Override
-	protected IOIOLooper createIOIOLooper()
-	{
+	protected IOIOLooper createIOIOLooper() {
 		return new Looper();
 	}
 
-	public void log(final String msg)
-	{
-		runOnUiThread(new Runnable()
-		{
-			public void run()
-			{
+	public void log(final String msg) {
+		runOnUiThread(new Runnable() {
+			public void run() {
 				mText.append(msg);
 				mText.append("\n");
 				mScroller.smoothScrollTo(0, mText.getBottom());
@@ -87,8 +97,7 @@ public class MainActivity extends IOIOActivity
 		});
 	}
 
-	public void onSensorChanged(SensorEvent event)
-	{
+	public void onSensorChanged(SensorEvent event) {
 		accelerometer.onSensorChanged(event);
 	}
 }
