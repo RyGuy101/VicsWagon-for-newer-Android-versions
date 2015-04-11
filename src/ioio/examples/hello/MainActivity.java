@@ -11,9 +11,11 @@ import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
 import ioio.lib.util.android.IOIOActivity;
+import android.content.pm.ActivityInfo;
 import android.hardware.SensorEvent;
 import android.hardware.SensorManager;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.speech.tts.TextToSpeech;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -30,16 +32,20 @@ public class MainActivity extends IOIOActivity {//
 	private DigitalOutput led;// The on-board LED
 	private Accelerometer accelerometer;
 	private VicsWagon vw;
-
 	private boolean powerOn = false;
+	private double defaultSpeed = 2.5;
+
+	public static MainActivity activity;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
+		this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 		mText = (TextView) findViewById(R.id.logText);
 		mScroller = (ScrollView) findViewById(R.id.scroller);
 		sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+		activity = this;
 	}
 
 	@Override
@@ -72,10 +78,10 @@ public class MainActivity extends IOIOActivity {//
 		}
 
 		@Override
-		public void loop() throws ConnectionLostException {
+		public void loop() throws ConnectionLostException, InterruptedException {
 			if (powerOn) {
 				led.write(false);
-				vw.runRobotTest();
+				vw.spinRightForever(2);
 			} else {
 				led.write(true);
 			}

@@ -4,6 +4,9 @@ package ioio.examples.hello;
  * Happy version 150228B...IntelliJ version
  * Added Duane's code for wave drive ... commented out
  ********************************************************************************************/
+import java.util.ArrayList;
+import java.util.HashMap;
+
 import ioio.lib.api.DigitalOutput;
 import ioio.lib.api.IOIO;
 import ioio.lib.api.Sequencer;
@@ -14,6 +17,7 @@ import ioio.lib.api.Sequencer.ChannelConfigSteps;
 import ioio.lib.api.Sequencer.ChannelCueBinary;
 import ioio.lib.api.Sequencer.ChannelCueFmSpeed;
 import ioio.lib.api.Sequencer.Clock;
+import ioio.lib.api.Sequencer.Event;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
 import android.speech.tts.TextToSpeech;
@@ -115,6 +119,12 @@ public class VicsWagon {
 			stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
 	private int MAX_FM_SPEED_PERIOD = 60000;
 	private int MIN_FM_SPEED_PERIOD = 600;
+
+	private boolean FORWARD_RIGHT = false;
+	private boolean FORWARD_LEFT = true;
+	private boolean BACKWARD_RIGHT = true;
+	private boolean BACKWARD_LEFT = false;
+
 	public MainActivity main;
 
 	public void setMain(MainActivity main) {
@@ -128,7 +138,7 @@ public class VicsWagon {
 	public void runRobotTest() {
 		int sinePeriod = 0;
 		try {
-			stepperRightFMspeedCue.period = 400;// 
+			stepperRightFMspeedCue.period = 400;
 			stepperLeftFMspeedCue.period = 400;
 			sequencer = ioio_.openSequencer(channelConfigList);
 			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
@@ -144,13 +154,113 @@ public class VicsWagon {
 					// stepperLeftFMspeedCue.period = sinePeriod;
 					// sequencer.push(cueList, 600);
 					// }
-					sequencer.push(cueList, 6000);
+					sequencer.push(cueList, 1000);
 				}
 			}
 
 		} catch (Exception e) {
 		}
+	}
 
+	public void goBackward(double speed, int duration) {
+		try {
+			stepperRightFMspeedCue.period = (int) (1000 / speed);
+			stepperLeftFMspeedCue.period = (int) (1000 / speed);
+			backwardCue(duration);
+			sequencer.start();
+			waitToFinish();
+			sequencer.pause();
+		} catch (Exception e) {
+		}
+	}
+
+	private void backwardCue(int duration) throws ConnectionLostException,
+			InterruptedException {
+		setDirection(BACKWARD_LEFT, BACKWARD_RIGHT);
+		sequencer.push(cueList, duration);
+	}
+
+	public void goForward(double speed, int duration) {
+		try {
+			stepperRightFMspeedCue.period = (int) (1000 / speed);
+			stepperLeftFMspeedCue.period = (int) (1000 / speed);
+			forwardCue(duration);
+			sequencer.start();
+			waitToFinish();
+			sequencer.pause();
+		} catch (Exception e) {
+		}
+	}
+
+	private void forwardCue(int duration) throws ConnectionLostException,
+			InterruptedException {
+		setDirection(FORWARD_LEFT, FORWARD_RIGHT);
+		sequencer.push(cueList, duration);
+	}
+
+	public void spinLeft(double speed, int duration) {
+		try {
+			stepperRightFMspeedCue.period = (int) (1000 / speed);
+			stepperLeftFMspeedCue.period = (int) (1000 / speed);
+			spinLeftCue(duration);
+			sequencer.start();
+			waitToFinish();
+			sequencer.pause();
+		} catch (Exception e) {
+		}
+	}
+
+	private void spinLeftCue(int duration) throws ConnectionLostException,
+			InterruptedException {
+		setDirection(BACKWARD_LEFT, FORWARD_RIGHT);
+		sequencer.push(cueList, duration);
+	}
+
+	public void spinRight(double speed, int duration) {
+		try {
+			stepperRightFMspeedCue.period = (int) (1000 / speed);
+			stepperLeftFMspeedCue.period = (int) (1000 / speed);
+			spinRightCue(duration);
+			sequencer.start();
+			waitToFinish();
+			sequencer.pause();
+		} catch (Exception e) {
+		}
+	}
+
+	public void spinRightForever(double speed) {
+		try {
+			stepperRightFMspeedCue.period = (int) (1000 / speed);
+			stepperLeftFMspeedCue.period = (int) (1000 / speed);
+			setDirection(FORWARD_LEFT, BACKWARD_RIGHT);
+			sequencer.manualStart(cueList);
+		} catch (Exception e) {
+		}
+	}
+
+	private void spinRightCue(int duration) throws ConnectionLostException,
+			InterruptedException {
+		setDirection(FORWARD_LEFT, BACKWARD_RIGHT);
+		sequencer.push(cueList, duration);
+	}
+
+	private void waitToFinish() throws ConnectionLostException {
+		while (sequencer.getLastEvent().type
+				.equals(Sequencer.Event.Type.STALLED)) {
+		}
+		while (!sequencer.getLastEvent().type
+				.equals(Sequencer.Event.Type.STALLED)) {
+		}
+	}
+
+	private void setDirection(boolean leftDirection, boolean rightDirection)
+			throws ConnectionLostException {
+		rightMotorDirection.close();
+		leftMotorDirection.close();
+		rightMotorDirection = ioio_.openDigitalOutput(
+				MOTOR_RIGHT_DIRECTION_PIN, rightDirection);
+		leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_PIN,
+				leftDirection);
 	}
 
 	public void configureVicsWagonStandard() {
@@ -166,8 +276,11 @@ public class VicsWagon {
 			motorControllerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
 			motorControllerReset.write(false);
 			motorControllerReset.write(true);
+
 			setUpMotorControllerChipForWaveDrive();
 
+			sequencer = ioio_.openSequencer(channelConfigList);
+			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
 		} catch (Exception e) {
 		}
 	}

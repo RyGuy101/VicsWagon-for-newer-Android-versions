@@ -4,7 +4,9 @@
     a:versionCode="1"
     a:versionName="1.0" >
 
-    <uses-sdk a:minSdkVersion="8" />
+    <uses-sdk
+        a:minSdkVersion="8"
+        a:targetSdkVersion="21" />
 
     <uses-permission a:name="android.permission.INTERNET" />
     <uses-permission a:name="android.permission.BLUETOOTH" />
