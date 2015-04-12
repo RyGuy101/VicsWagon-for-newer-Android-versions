@@ -37,6 +37,7 @@ import ioio.lib.api.exception.ConnectionLostException;
 import ioio.lib.util.BaseIOIOLooper;
 import ioio.lib.util.IOIOLooper;
 import ioio.lib.util.android.IOIOActivity;
+import android.R.dimen;
 import android.content.Intent;
 import android.graphics.DashPathEffect;
 import android.hardware.Sensor;
@@ -100,23 +101,16 @@ public class VicsWagon {
 	private DigitalOutput motorControllerControl;// Decay mode high => slow
 	private DigitalOutput halfFull;// High => half step
 	private Sequencer sequencer;
-	final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(
-			new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-	final ChannelConfigBinary stepperRightDirConfig = new Sequencer.ChannelConfigBinary(
-			false, false, new DigitalOutput.Spec(MOTOR_RIGHT_DIRECTION_PIN));
-	final ChannelConfigBinary stepperLeftDirConfig = new Sequencer.ChannelConfigBinary(
-			false, false, new DigitalOutput.Spec(MOTOR_LEFT_DIRECTION_PIN));
+	final ChannelConfigSteps stepperStepConfig = new ChannelConfigSteps(new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+	final ChannelConfigBinary stepperRightDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_RIGHT_DIRECTION_PIN));
+	final ChannelConfigBinary stepperLeftDirConfig = new Sequencer.ChannelConfigBinary(false, false, new DigitalOutput.Spec(MOTOR_LEFT_DIRECTION_PIN));
 	private Sequencer.ChannelCueBinary stepperDirCue = new ChannelCueBinary();
-	final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(
-			Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
-	final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(
-			Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
-	final ChannelConfig[] channelConfigList = new ChannelConfig[] {
-			stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig
+	final ChannelConfigFmSpeed stepperRightFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_RIGHT_PIN));
+	final ChannelConfigFmSpeed stepperLeftFMspeedConfig = new ChannelConfigFmSpeed(Clock.CLK_62K5, 2, new DigitalOutput.Spec(MOTOR_CLOCK_LEFT_PIN));
+	final ChannelConfig[] channelConfigList = new ChannelConfig[] { stepperRightFMspeedConfig, stepperLeftFMspeedConfig };// stepperFMspeedConfig
 	private Sequencer.ChannelCueFmSpeed stepperRightFMspeedCue = new ChannelCueFmSpeed();
 	private Sequencer.ChannelCueFmSpeed stepperLeftFMspeedCue = new ChannelCueFmSpeed();
-	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] {
-			stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
+	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] { stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
 	private int MAX_FM_SPEED_PERIOD = 60000;
 	private int MIN_FM_SPEED_PERIOD = 600;
 
@@ -174,8 +168,7 @@ public class VicsWagon {
 		}
 	}
 
-	private void backwardCue(int duration) throws ConnectionLostException,
-			InterruptedException {
+	private void backwardCue(int duration) throws ConnectionLostException, InterruptedException {
 		setDirection(BACKWARD_LEFT, BACKWARD_RIGHT);
 		sequencer.push(cueList, duration);
 	}
@@ -192,8 +185,31 @@ public class VicsWagon {
 		}
 	}
 
-	private void forwardCue(int duration) throws ConnectionLostException,
-			InterruptedException {
+	public void goForwardAndCheckForWall(double speed, int duration, int distanceFromWall) {
+		try {
+			stepperRightFMspeedCue.period = (int) (1000 / speed);
+			stepperLeftFMspeedCue.period = (int) (1000 / speed);
+			forwardCue(duration);
+			sequencer.start();
+			waitToFinishOrForWall(distanceFromWall);
+			sequencer.stop();
+		} catch (Exception e) {
+		}
+	}
+
+	public void goForwardUntilWall(double speed, int distanceFromWall) {
+		try {
+			stepperRightFMspeedCue.period = (int) (1000 / speed);
+			stepperLeftFMspeedCue.period = (int) (1000 / speed);
+			setDirection(FORWARD_LEFT, FORWARD_RIGHT);
+			sequencer.manualStart(cueList);
+			waitUntilFrontWall(distanceFromWall);
+			sequencer.manualStop();
+		} catch (Exception e) {
+		}
+	}
+
+	private void forwardCue(int duration) throws ConnectionLostException, InterruptedException {
 		setDirection(FORWARD_LEFT, FORWARD_RIGHT);
 		sequencer.push(cueList, duration);
 	}
@@ -210,8 +226,7 @@ public class VicsWagon {
 		}
 	}
 
-	private void spinLeftCue(int duration) throws ConnectionLostException,
-			InterruptedException {
+	private void spinLeftCue(int duration) throws ConnectionLostException, InterruptedException {
 		setDirection(BACKWARD_LEFT, FORWARD_RIGHT);
 		sequencer.push(cueList, duration);
 	}
@@ -238,40 +253,179 @@ public class VicsWagon {
 		}
 	}
 
-	private void spinRightCue(int duration) throws ConnectionLostException,
-			InterruptedException {
+	private void spinRightCue(int duration) throws ConnectionLostException, InterruptedException {
 		setDirection(FORWARD_LEFT, BACKWARD_RIGHT);
 		sequencer.push(cueList, duration);
 	}
 
 	private void waitToFinish() throws ConnectionLostException {
-		while (sequencer.getLastEvent().type
-				.equals(Sequencer.Event.Type.STALLED)) {
-		}
-		while (!sequencer.getLastEvent().type
-				.equals(Sequencer.Event.Type.STALLED)) {
+		SystemClock.sleep(100);
+		// while
+		// (sequencer.getLastEvent().type.equals(Sequencer.Event.Type.STALLED))
+		// {
+		// }
+		while (!sequencer.getLastEvent().type.equals(Sequencer.Event.Type.STALLED)) {
 		}
 	}
 
-	private void setDirection(boolean leftDirection, boolean rightDirection)
-			throws ConnectionLostException {
+	private void waitUntilFrontWall(int distanceFromWall) throws ConnectionLostException, InterruptedException {
+		SystemClock.sleep(100);
+		sonar.read();
+		while (sonar.getFrontDistance() > distanceFromWall) {
+			SystemClock.sleep(100);
+			MainActivity.activity.log(String.valueOf(sonar.getFrontDistance()));
+			sonar.read();
+			SystemClock.sleep(100);
+		}
+	}
+
+	private boolean wallInFront(int distanceFromWall) throws ConnectionLostException, InterruptedException {
+		sonar.read();
+		return sonar.getFrontDistance() <= distanceFromWall;
+	}
+
+	private void waitToFinishOrForWall(int distanceFromWall) throws ConnectionLostException, InterruptedException {
+		while (sequencer.getLastEvent().type.equals(Sequencer.Event.Type.STALLED)) {
+		}
+		SystemClock.sleep(100);
+		sonar.read();
+		while (sonar.getFrontDistance() > distanceFromWall && !sequencer.getLastEvent().type.equals(Sequencer.Event.Type.STALLED)) {
+			SystemClock.sleep(100);
+			MainActivity.activity.log(String.valueOf(sonar.getFrontDistance()));
+			sonar.read();
+		}
+	}
+
+	private void setDirection(boolean leftDirection, boolean rightDirection) throws ConnectionLostException {
 		rightMotorDirection.close();
 		leftMotorDirection.close();
-		rightMotorDirection = ioio_.openDigitalOutput(
-				MOTOR_RIGHT_DIRECTION_PIN, rightDirection);
-		leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_PIN,
-				leftDirection);
+		rightMotorDirection = ioio_.openDigitalOutput(MOTOR_RIGHT_DIRECTION_PIN, rightDirection);
+		leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_PIN, leftDirection);
+	}
+
+	public void goMM(int mm) throws ConnectionLostException { // Go Millimeters
+
+		double StepsPerMM = 1.000;
+		int steps = (int) Math.abs((double) (mm) * StepsPerMM);
+		int StepsPerPush = 16; // magic so that the queue duration same as
+								// period
+		// MaxFreq based on what you motor can handle without slipping...
+		double maxFreq = 1000.0; // steps per second ran at 3000 some glitches
+									// 2500 was good
+		double minFreq = 16.0;
+		double maxDelFreq = 4.0; // steps per second ran at 5.0 some glitches 4
+									// was good
+		int numPushes = steps / StepsPerPush;
+		if (mm >= 0) {
+			rightMotorDirection.write(FORWARD_RIGHT);
+			leftMotorDirection.write(FORWARD_LEFT);
+		} else {
+			rightMotorDirection.write(BACKWARD_RIGHT);
+			leftMotorDirection.write(BACKWARD_LEFT);
+		}
+
+		double freq;
+		double maxfrac;
+		double delfreq;
+		double duration;
+		int period;
+		int i;
+		// log("In goSteps");
+		freq = minFreq;
+		try {
+			sequencer.start();
+			for (i = 0; i < numPushes; i++) {
+				maxfrac = (maxFreq - freq) / maxFreq;
+				delfreq = (maxfrac * maxfrac) * maxDelFreq;
+				if (i < numPushes / 2) {
+					freq += delfreq;
+				} else if (i > numPushes / 2) {
+					freq -= delfreq;
+				}
+
+				// log("i = " + i + " freq = " + freq + " numPushes " +
+				// numPushes);
+
+				// translate freq steps/sec into period (usec) period = 1/freq
+				// 1/2000 = 0.0005 but translate to usec divide by 0.000001
+				// gives 500
+				// period = 1000000/freq;
+				if (freq <= minFreq)
+					freq = minFreq;
+				period = (int) (50000.0 / freq);
+				if (period < 1)
+					period = 1; // limits for the period
+				if (period > 65535)
+					period = 65535;
+				stepperRightFMspeedCue.period = period; // period is in micro
+														// seconds
+				stepperLeftFMspeedCue.period = period;
+				duration = (20 * period / 60.0 * StepsPerPush);
+				// MainActivity.activity.log("i = " + i + " freq = " + freq +
+				// " period " + period + " duration " + duration);
+				// second parameter in the push(cue, duration)
+				// 62500 cue duration 62500 * 16us = 1s
+				// using period gives 16 steps per push
+				sequencer.push(cueList, (int) duration);
+				if (wallInFront(1000)) {
+					sequencer.stop();
+					sequencer.close();
+					sequencer = ioio_.openSequencer(channelConfigList);
+					sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
+					break;
+				}
+			}
+			waitToFinishOrForWall(1000);
+			sequencer.stop();
+			sequencer.close();
+			sequencer = ioio_.openSequencer(channelConfigList);
+			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			MainActivity.activity.log("EXCEPTION" + e.getMessage());
+		}
+		MainActivity.activity.log("Finished going forward");
+	}
+
+	public void turn(int deg) throws ConnectionLostException {
+		// zero radius turn of deg degrees
+		if (deg >= 0) {
+			rightMotorDirection.write(FORWARD_RIGHT);
+			leftMotorDirection.write(BACKWARD_LEFT);
+		} else {
+			rightMotorDirection.write(BACKWARD_RIGHT);
+			leftMotorDirection.write(FORWARD_LEFT);
+		}
+		int period;
+		double duration;
+		int StepsPerPush = 16;
+		int steps = (int) (2.75 * (double) deg);
+		period = (int) (50000.0 / 30.0);
+		int numPushes = steps / StepsPerPush;
+		try {
+			sequencer.start();
+			for (int i = 0; i < numPushes; i++) {
+				stepperRightFMspeedCue.period = period; // period is in micro
+														// seconds
+				stepperLeftFMspeedCue.period = period;
+				duration = (int) ((double) 20 * period / 60.0 * (double) StepsPerPush);
+				MainActivity.activity.log("Turn " + period + " duration " + duration);
+				sequencer.push(cueList, (int) duration);
+			}
+			waitToFinish();
+			sequencer.pause();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			MainActivity.activity.log("EXCEPTION" + e.getMessage());
+		}
 	}
 
 	public void configureVicsWagonStandard() {
 		try {
 			halfFull = ioio_.openDigitalOutput(MOTOR_HALF_FULL_STEP_PIN, false);// Full
-			rightMotorDirection = ioio_.openDigitalOutput(
-					MOTOR_RIGHT_DIRECTION_PIN, true);// forward
-			leftMotorDirection = ioio_.openDigitalOutput(
-					MOTOR_LEFT_DIRECTION_PIN, false);
-			motorControllerControl = ioio_.openDigitalOutput(
-					MOTOR_CONTROLLER_CONTROL_PIN, true);// slow
+			rightMotorDirection = ioio_.openDigitalOutput(MOTOR_RIGHT_DIRECTION_PIN, true);// forward
+			leftMotorDirection = ioio_.openDigitalOutput(MOTOR_LEFT_DIRECTION_PIN, false);
+			motorControllerControl = ioio_.openDigitalOutput(MOTOR_CONTROLLER_CONTROL_PIN, true);// slow
 			motorEnable = ioio_.openDigitalOutput(MOTOR_ENABLE_PIN, true);// enable
 			motorControllerReset = ioio_.openDigitalOutput(MOTOR_RESET, true);
 			motorControllerReset.write(false);
@@ -303,10 +457,8 @@ public class VicsWagon {
 	 **********************************************************************************/
 	public void setUpMotorControllerChipForWaveDrive() {
 		try {
-			leftMotorClock = ioio_
-					.openDigitalOutput(MOTOR_CLOCK_LEFT_PIN, true);
-			rightMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_RIGHT_PIN,
-					true);
+			leftMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_LEFT_PIN, true);
+			rightMotorClock = ioio_.openDigitalOutput(MOTOR_CLOCK_RIGHT_PIN, true);
 			motorControllerReset.write(false);
 			motorControllerReset.write(true);
 			halfFull.write(true);// Half

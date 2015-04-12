@@ -55,14 +55,10 @@ public class UltraSonicSensor {
 	 */
 	public UltraSonicSensor(IOIO ioio) throws ConnectionLostException {
 		this.ioio = ioio;
-		this.leftStrobe = ioio
-				.openDigitalOutput(LEFT_STROBE_ULTRASONIC_OUTPUT_PIN);
-		this.rightStrobe = ioio
-				.openDigitalOutput(RIGHT_STROBE_ULTRASONIC_OUTPUT_PIN);
-		this.rearStrobe = ioio
-				.openDigitalOutput(REAR_STROBE_ULTRASONIC_OUTPUT_PIN);
-		this.frontStrobe = ioio
-				.openDigitalOutput(FRONT_STROBE_ULTRASONIC_OUTPUT_PIN);
+		this.leftStrobe = ioio.openDigitalOutput(LEFT_STROBE_ULTRASONIC_OUTPUT_PIN);
+		this.rightStrobe = ioio.openDigitalOutput(RIGHT_STROBE_ULTRASONIC_OUTPUT_PIN);
+		this.rearStrobe = ioio.openDigitalOutput(REAR_STROBE_ULTRASONIC_OUTPUT_PIN);
+		this.frontStrobe = ioio.openDigitalOutput(FRONT_STROBE_ULTRASONIC_OUTPUT_PIN);
 	}
 
 	/**
@@ -74,23 +70,24 @@ public class UltraSonicSensor {
 	 * @throws InterruptedException
 	 */
 	public void read() throws ConnectionLostException, InterruptedException {
-		leftDistance = read(leftStrobe, leftInput, LEFT_ULTRASONIC_INPUT_PIN);
-		frontDistance = read(frontStrobe, frontInput,
-				FRONT_ULTRASONIC_INPUT_PIN);
+		// leftDistance = read(leftStrobe, leftInput,
+		// LEFT_ULTRASONIC_INPUT_PIN);
+		frontDistance = read(frontStrobe, frontInput, FRONT_ULTRASONIC_INPUT_PIN);
 		// rightDistance = read(rightStrobe, rightInput,
 		// RIGHT_ULTRASONIC_INPUT_PIN);
 		// rearDistance = read(rearStrobe, rearInput,
 		// REAR_ULTRASONIC_INPUT_PIN);
 	}
 
-	private int read(DigitalOutput strobe, PulseInput input, int inputPin)
-			throws ConnectionLostException, InterruptedException // Order of
-																	// following
-																	// statements
-																	// is very
-																	// important...do
-																	// not
-																	// change
+	private int read(DigitalOutput strobe, PulseInput input, int inputPin) throws ConnectionLostException, InterruptedException // Order
+																																// of
+																																// following
+																																// statements
+																																// is
+																																// very
+																																// important...do
+																																// not
+																																// change
 	{
 		int distance = 0;
 		ioio.beginBatch();

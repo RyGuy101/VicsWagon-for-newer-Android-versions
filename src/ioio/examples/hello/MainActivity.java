@@ -73,6 +73,7 @@ public class MainActivity extends IOIOActivity {//
 			accelerometer = new Accelerometer(sensorManager, ioio_);
 			vw = new VicsWagon(ioio_);
 			sonar = new UltraSonicSensor(ioio_);
+			vw.sonar = sonar;
 			led = ioio_.openDigitalOutput(0, true);
 			vw.configureVicsWagonStandard();
 		}
@@ -81,7 +82,16 @@ public class MainActivity extends IOIOActivity {//
 		public void loop() throws ConnectionLostException, InterruptedException {
 			if (powerOn) {
 				led.write(false);
-				vw.spinRightForever(2);
+				// vw.goForwardAndCheckForWall(1.5, 60000, 1000);
+				// SystemClock.sleep(250);
+				// vw.spinLeft(1.5, 50000);
+				// SystemClock.sleep(250);
+				vw.goMM(1000); //
+				SystemClock.sleep(1000);
+				vw.turn(120);
+				SystemClock.sleep(1000); // sonar.read();
+				// SystemClock.sleep(500);
+				// log(String.valueOf(sonar.getFrontDistance()));
 			} else {
 				led.write(true);
 			}
