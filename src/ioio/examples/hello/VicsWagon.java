@@ -113,7 +113,7 @@ public class VicsWagon {
 	private Sequencer.ChannelCue[] cueList = new Sequencer.ChannelCue[] { stepperRightFMspeedCue, stepperLeftFMspeedCue };// stepperStepCue//stepperFMspeedCue
 	private int MAX_FM_SPEED_PERIOD = 60000;
 	private int MIN_FM_SPEED_PERIOD = 600;
-	private double timePerPush = 6250.0;// measured in 16 microseconds
+	private int timePerPush = 6250;// measured in 16 microseconds
 	private double acceleration = 0.0000000512;// measured in steps/((16
 												// microseconds)^2)
 	private int minPeriod = 78;// measured in 16 microseconds
@@ -180,7 +180,7 @@ public class VicsWagon {
 		double velocity = acceleration * timePerPush;
 		int period = 0;
 		int currentSteps = 0;
-		int lastDuration = (int) timePerPush;
+		int lastDuration = timePerPush;
 		sequencer.start();
 		while (currentSteps < steps / 2.0) {
 			period = Math.max((int) (1 / velocity), minPeriod);
@@ -189,12 +189,12 @@ public class VicsWagon {
 			if (currentSteps + timePerPush / period > steps / 2.0) {
 				lastDuration = (int) ((steps / 2.0 - currentSteps) * period);
 				pushCue(lastDuration);
-				currentSteps += (int) (lastDuration / period);
+				currentSteps += lastDuration / period;
 				velocity += acceleration * lastDuration;
 				break;
 			} else {
-				pushCue((int) timePerPush);
-				currentSteps += (int) (timePerPush / period);
+				pushCue(timePerPush);
+				currentSteps += timePerPush / period;
 				velocity += acceleration * timePerPush;
 			}
 		}
@@ -207,13 +207,13 @@ public class VicsWagon {
 			stepperRightFMspeedCue.period = period;
 			stepperLeftFMspeedCue.period = period;
 			if (currentSteps + timePerPush / period > steps) {
-				lastDuration = (int) ((steps - currentSteps) * period);
+				lastDuration = (steps - currentSteps) * period;
 				pushCue(lastDuration);
-				currentSteps += (int) (lastDuration / period);
+				currentSteps += lastDuration / period;
 				break;
 			} else {
-				pushCue((int) timePerPush);
-				currentSteps += (int) (timePerPush / period);
+				pushCue(timePerPush);
+				currentSteps += timePerPush / period;
 			}
 			velocity -= acceleration * timePerPush;
 		}
@@ -291,9 +291,14 @@ public class VicsWagon {
 	}
 
 	private void waitToFinish() throws ConnectionLostException {
+		while (sequencer.getLastEvent().type.equals(Sequencer.Event.Type.STOPPED)) {
+			SystemClock.sleep(1);
+		}
 		while (sequencer.getLastEvent().type.equals(Sequencer.Event.Type.STALLED)) {
+			SystemClock.sleep(1);
 		}
 		while (!sequencer.getLastEvent().type.equals(Sequencer.Event.Type.STALLED)) {
+			SystemClock.sleep(1);
 		}
 	}
 
