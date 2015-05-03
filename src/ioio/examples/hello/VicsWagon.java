@@ -118,6 +118,9 @@ public class VicsWagon {
 												// microseconds)^2)
 	private int minPeriod = 78;// measured in 16 microseconds
 
+	public static final double ROBOT_WIDTH = 1;
+	public static final double ROBOT_LENGTH = 1;
+
 	private boolean FORWARD_RIGHT = false;
 	private boolean FORWARD_LEFT = true;
 	private boolean BACKWARD_RIGHT = true;
@@ -288,6 +291,49 @@ public class VicsWagon {
 	private void spinRightCue(int duration) throws ConnectionLostException, InterruptedException {
 		setDirection(FORWARD_LEFT, BACKWARD_RIGHT);
 		pushCue(duration);
+	}
+
+	public void turnLeft(double degrees) throws ConnectionLostException, InterruptedException {
+		turn(degrees, true);
+	}
+
+	public void turnRight(double degrees) throws ConnectionLostException, InterruptedException {
+		turn(degrees, false);
+	}
+
+	private void turn(double degrees, boolean left) throws ConnectionLostException, InterruptedException {
+		double m = Math.tan(Math.toRadians(degrees));
+		double sinθ = Math.sin(Math.toRadians(degrees));
+		double cosθ = Math.cos(Math.toRadians(degrees));
+		double r = ROBOT_WIDTH;
+		double b = -(r / 2.0) * m * sinθ - (r / 2.0) + (ROBOT_LENGTH / 2.0) * m - (r / 2.0) * cosθ;
+		double x = (-2 * b * m - Math.sqrt(4 * b * b * m * m - 4 * (m * m + 1) * (b * b - r * r))) / (2 * (m * m + 1));
+		double y = Math.sqrt(r * r - x * x);
+		double firstTurnAngle = Math.toDegrees(Math.atan(y / x));
+		if (firstTurnAngle < 0) {
+			firstTurnAngle += 180;
+		}
+		double secondTurnAngle = degrees + firstTurnAngle;
+		setDirection(BACKWARD_LEFT, BACKWARD_RIGHT);
+		sequencer.start();
+		if (left) {
+			stepperRightFMspeedCue.period = 800;
+			stepperLeftFMspeedCue.period = 0;
+		} else {
+			stepperRightFMspeedCue.period = 0;
+			stepperLeftFMspeedCue.period = 800;
+		}
+		pushCue((int) firstTurnAngle);// TODO convert degrees to duration
+		if (left) {
+			stepperRightFMspeedCue.period = 0;
+			stepperLeftFMspeedCue.period = 800;
+		} else {
+			stepperRightFMspeedCue.period = 800;
+			stepperLeftFMspeedCue.period = 0;
+		}
+		pushCue((int) secondTurnAngle);// TODO convert degrees to duration
+		waitToFinish();
+		sequencer.pause();
 	}
 
 	private void waitToFinish() throws ConnectionLostException {
@@ -505,8 +551,8 @@ public class VicsWagon {
 	/***********************************************************************************************************
 	 * A HIGH logic level on the HALF/FULL input selects Half Step Mode. At
 	 * Start-Up or after a RESET the Phase Sequencer is at state 1. After each
-	 * clock pulse the state changes following the sequence 1,2,3,4,5,6,7,8,…
-	 * if CW/ CCW is high (Clockwise movement) or 1,8,7,6,5,4,3,2,… if CW/CCW
+	 * clock pulse the state changes following the sequence 1,2,3,4,5,6,7,8,â€¦
+	 * if CW/ CCW is high (Clockwise movement) or 1,8,7,6,5,4,3,2,â€¦ if CW/CCW
 	 * is low (Counterclockwise movement).
 	 *************************************************************************************************************/
 	public void setUpMotrollerChipForHalfStepDrive() {
@@ -520,7 +566,7 @@ public class VicsWagon {
 	 * selected by holding the HALF/FULL input low and applying a RESET. AT
 	 * start -up or after a RESET the State Machine is in state1. While the
 	 * HALF/FULL input is kept low, state changes following the sequence
-	 * 1,3,5,7,… if CW/CCW is high (Clockwise movement) or 1,7,5,3,… if
+	 * 1,3,5,7,â€¦ if CW/CCW is high (Clockwise movement) or 1,7,5,3,â€¦ if
 	 * CW/CCW is low (Counterclockwise movement).
 	 *************************************************************************************************************/
 	public void setUpMotrollerChipForFullStepDrive() {

@@ -82,8 +82,8 @@ public class MainActivity extends IOIOActivity {//
 		public void loop() throws ConnectionLostException, InterruptedException {
 			if (powerOn) {
 				led.write(false);
-				vw.goForward(500);
-				SystemClock.sleep(1000);
+				vw.goForward(2000);
+				SystemClock.sleep(5000);
 			} else {
 				led.write(true);
 			}
