@@ -118,8 +118,8 @@ public class VicsWagon {
 												// microseconds)^2)
 	private int minPeriod = 78;// measured in 16 microseconds
 
-	public static final double ROBOT_WIDTH = 1;
-	public static final double ROBOT_LENGTH = 1;
+	public static final double ROBOT_WIDTH = 2;
+	public static final double ROBOT_LENGTH = 3;
 
 	private boolean FORWARD_RIGHT = false;
 	private boolean FORWARD_LEFT = true;
@@ -294,44 +294,106 @@ public class VicsWagon {
 	}
 
 	public void turnLeft(double degrees) throws ConnectionLostException, InterruptedException {
-		turn(degrees, true);
+		turnSegment(degrees, true);
 	}
 
 	public void turnRight(double degrees) throws ConnectionLostException, InterruptedException {
-		turn(degrees, false);
+		turnSegment(degrees, false);
 	}
 
-	private void turn(double degrees, boolean left) throws ConnectionLostException, InterruptedException {
-		double m = Math.tan(Math.toRadians(degrees));
+	private void turnSegment(double degrees, boolean left) throws ConnectionLostException, InterruptedException {
+		double r = ROBOT_WIDTH;
+		double l = ROBOT_LENGTH;
 		double sinθ = Math.sin(Math.toRadians(degrees));
 		double cosθ = Math.cos(Math.toRadians(degrees));
-		double r = ROBOT_WIDTH;
-		double b = -(r / 2.0) * m * sinθ - (r / 2.0) + (ROBOT_LENGTH / 2.0) * m - (r / 2.0) * cosθ;
+		double tanθ = Math.tan(Math.toRadians(degrees));
+		double m = tanθ;
+		double b = -(r / 2.0) * m * sinθ - (r / 2.0) + (l / 2.0) * m - (r / 2.0) * cosθ;
 		double x = (-2 * b * m - Math.sqrt(4 * b * b * m * m - 4 * (m * m + 1) * (b * b - r * r))) / (2 * (m * m + 1));
-		double y = Math.sqrt(r * r - x * x);
-		double firstTurnAngle = Math.toDegrees(Math.atan(y / x));
-		if (firstTurnAngle < 0) {
-			firstTurnAngle += 180;
-		}
+		double y = m * x + b;
+		double firstTurnAngle = Math.toDegrees(Math.atan(x / y));
 		double secondTurnAngle = degrees + firstTurnAngle;
+		MainActivity.activity.log("First turn angle: " + firstTurnAngle);
+		MainActivity.activity.log("Second turn angle: " + secondTurnAngle);
+		double m2 = m;
+		double b2 = -(r / 2.0) * m2 * sinθ - (r / 2.0) * cosθ;
+		double r2 = Math.sqrt(r * r + l * l) / 2.0;
+		double x2 = (-2 * b2 * m2 + Math.sqrt(4 * b2 * b2 * m2 * m2 - 4 * (m2 * m2 + 1) * (b2 * b2 - r2 * r2))) / (2 * (m2 * m2 + 1));
+		double y2 = m2 * x2 + b2;
+		double sinα = Math.sin(Math.toRadians(firstTurnAngle));
+		double cosα = Math.cos(Math.toRadians(firstTurnAngle));
+		double m3 = -1 / m;
+		double b3 = m3 * -((r / 2.0) * tanθ + (l / 2.0) - r * sinα - (r * cosα) * tanθ);
+		double y3 = (b2 * m3 - b3 * m2) / (m3 - m2);
+		double x3 = (y3 - b2) / m2;
+		double forwardDistance = Math.sqrt((y3 - y2) * (y3 - y2) + (x3 - x2) * (x3 - x2));
+		MainActivity.activity.log("Forward distance: " + forwardDistance);
 		setDirection(BACKWARD_LEFT, BACKWARD_RIGHT);
 		sequencer.start();
+		int period = 800;
 		if (left) {
-			stepperRightFMspeedCue.period = 800;
+			stepperRightFMspeedCue.period = period;
 			stepperLeftFMspeedCue.period = 0;
 		} else {
 			stepperRightFMspeedCue.period = 0;
-			stepperLeftFMspeedCue.period = 800;
+			stepperLeftFMspeedCue.period = period;
 		}
-		pushCue((int) firstTurnAngle);// TODO convert degrees to duration
+		int steps = (int) (1 * firstTurnAngle);// TODO convert degrees to steps
+		int duration = steps * period;
+		pushCue(duration);
 		if (left) {
 			stepperRightFMspeedCue.period = 0;
-			stepperLeftFMspeedCue.period = 800;
+			stepperLeftFMspeedCue.period = period;
 		} else {
-			stepperRightFMspeedCue.period = 800;
+			stepperRightFMspeedCue.period = period;
 			stepperLeftFMspeedCue.period = 0;
 		}
-		pushCue((int) secondTurnAngle);// TODO convert degrees to duration
+		int steps2 = (int) (1 * secondTurnAngle);// TODO convert degrees to
+													// steps
+		int duration2 = steps2 * period;
+		pushCue(duration2);
+		goForward((int) (forwardDistance * 1));// TODO convert (mili?)meters to
+												// steps
+		waitToFinish();
+		sequencer.pause();
+	}
+
+	public static void calculateTurn(double degrees) {
+		double r = ROBOT_WIDTH;
+		double l = ROBOT_LENGTH;
+		double sinθ = Math.sin(Math.toRadians(degrees));
+		double cosθ = Math.cos(Math.toRadians(degrees));
+		double tanθ = Math.tan(Math.toRadians(degrees));
+		double m = tanθ;
+		double b = -(r / 2.0) * m * sinθ - (r / 2.0) + (l / 2.0) * m - (r / 2.0) * cosθ;
+		double x = (-2 * b * m - Math.sqrt(4 * b * b * m * m - 4 * (m * m + 1) * (b * b - r * r))) / (2 * (m * m + 1));
+		double y = m * x + b;
+		double firstTurnAngle = Math.toDegrees(Math.atan(x / y));
+		double secondTurnAngle = degrees + firstTurnAngle;
+		MainActivity.activity.log("First turn angle: " + firstTurnAngle);
+		MainActivity.activity.log("Second turn angle: " + secondTurnAngle);
+		double m2 = m;
+		double b2 = -(r / 2.0) * m2 * sinθ - (r / 2.0) * cosθ;
+		double r2 = Math.sqrt(r * r + l * l) / 2.0;
+		double x2 = (-2 * b2 * m2 + Math.sqrt(4 * b2 * b2 * m2 * m2 - 4 * (m2 * m2 + 1) * (b2 * b2 - r2 * r2))) / (2 * (m2 * m2 + 1));
+		double y2 = m2 * x2 + b2;
+		double sinα = Math.sin(Math.toRadians(firstTurnAngle));
+		double cosα = Math.cos(Math.toRadians(firstTurnAngle));
+		double m3 = -1 / m;
+		double b3 = m3 * (-(r / 2.0) * tanθ - (l / 2.0) + r * sinα + (r * cosα) * tanθ);
+		double y3 = (b2 * m3 - b3 * m2) / (m3 - m2);
+		double x3 = (y3 - b2) / m2;
+		double forwardDistance = Math.sqrt((y3 - y2) * (y3 - y2) + (x3 - x2) * (x3 - x2));
+		MainActivity.activity.log("Forward distance: " + forwardDistance);
+	}
+
+	public void testTurn(double degrees, int period) throws ConnectionLostException, InterruptedException {
+		setDirection(BACKWARD_LEFT, BACKWARD_RIGHT);
+		stepperRightFMspeedCue.period = 0;
+		stepperLeftFMspeedCue.period = period;
+		int steps = (int) (1 * degrees);// TODO convert degrees to steps
+		int duration = steps * period;
+		pushCue(duration);
 		waitToFinish();
 		sequencer.pause();
 	}
@@ -455,7 +517,6 @@ public class VicsWagon {
 			sequencer = ioio_.openSequencer(channelConfigList);
 			sequencer.waitEventType(Sequencer.Event.Type.STOPPED);
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
 			MainActivity.activity.log("EXCEPTION" + e.getMessage());
 		}
 		MainActivity.activity.log("Finished going forward");
@@ -489,7 +550,6 @@ public class VicsWagon {
 			waitToFinish();
 			sequencer.pause();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			MainActivity.activity.log("EXCEPTION" + e.getMessage());
 		}
 	}
@@ -681,7 +741,6 @@ public class VicsWagon {
 	// stepperLeftFMspeedCue.period = period;
 	// sequencer.push(cueList, 625);
 	// } catch (Exception e) {
-	// // TODO Auto-generated catch block
 	// log("EXCEPTION" + e.getMessage());
 	// }
 	// }

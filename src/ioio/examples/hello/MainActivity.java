@@ -46,6 +46,7 @@ public class MainActivity extends IOIOActivity {//
 		mScroller = (ScrollView) findViewById(R.id.scroller);
 		sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 		activity = this;
+		VicsWagon.calculateTurn(45);
 	}
 
 	@Override
