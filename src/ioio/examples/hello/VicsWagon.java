@@ -324,6 +324,9 @@ public class VicsWagon {
 		double cosα = Math.cos(Math.toRadians(firstTurnAngle));
 		double m3 = -1 / m;
 		double b3 = m3 * -((r / 2.0) * tanθ + (l / 2.0) - r * sinα - (r * cosα) * tanθ);
+		MainActivity.activity.log(String.valueOf(b3));// forward distance should
+														// be half of robot
+														// length when b3 is 0.
 		double y3 = (b2 * m3 - b3 * m2) / (m3 - m2);
 		double x3 = (y3 - b2) / m2;
 		double forwardDistance = Math.sqrt((y3 - y2) * (y3 - y2) + (x3 - x2) * (x3 - x2));
@@ -381,6 +384,9 @@ public class VicsWagon {
 		double cosα = Math.cos(Math.toRadians(firstTurnAngle));
 		double m3 = -1 / m;
 		double b3 = m3 * (-(r / 2.0) * tanθ - (l / 2.0) + r * sinα + (r * cosα) * tanθ);
+		MainActivity.activity.log(String.valueOf(b3));// forward distance should
+														// be half of robot
+														// length when b3 is 0.
 		double y3 = (b2 * m3 - b3 * m2) / (m3 - m2);
 		double x3 = (y3 - b2) / m2;
 		double forwardDistance = Math.sqrt((y3 - y2) * (y3 - y2) + (x3 - x2) * (x3 - x2));
