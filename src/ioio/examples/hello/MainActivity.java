@@ -31,6 +31,7 @@ public class MainActivity extends IOIOActivity {//
 	private SensorManager sensorManager;
 	private DigitalOutput led;// The on-board LED
 	private Accelerometer accelerometer;
+	private AccelerometerTest accelerometerTest;
 	private VicsWagon vw;
 	private boolean powerOn = false;
 	private double defaultSpeed = 2.5;
@@ -46,7 +47,8 @@ public class MainActivity extends IOIOActivity {//
 		mScroller = (ScrollView) findViewById(R.id.scroller);
 		sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
 		activity = this;
-		VicsWagon.calculateTurn(38);
+		accelerometerTest = new AccelerometerTest(sensorManager);
+		accelerometerTest.configureAccelerometer(); 
 	}
 
 	@Override
